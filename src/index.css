@@ -12,13 +12,14 @@
     --muted-foreground: 180 20% 60%;
     --border: 190 100% 30% / 0.3;
     --ring: 190 100% 50%;
-    --radius: 0.25rem;
-    /* OBLIVION v5 DESIGN SYSTEM */
+    --radius: 0.15rem;
+    /* OBLIVION v5 (INTEGRATED v3) DESIGN SYSTEM */
     --ff-head: 'Syne', sans-serif;
     --ff-body: 'Space Mono', monospace;
     --ff-surface: 230 25% 4%;
-    --ff-ink: 180 100% 90%;
-    --ff-accent: 190 100% 50%;
+    --ff-ink: 180 100% 95%;
+    --ff-accent: 190 100% 60%;
+    --ff-red: 350 100% 50%;
   }
   body {
     @apply bg-background text-foreground selection:bg-primary/30;
@@ -26,14 +27,14 @@
     background-image:
       radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.03) 0%, transparent 50%),
       linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
-      linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
     background-size: 100% 100%, 100% 2px, 3px 100%;
   }
 }
 @layer components {
   .font-display { font-family: var(--ff-head); }
   .glass-cyber {
-    @apply bg-slate-950/80 backdrop-blur-xl border border-primary/20 shadow-[0_0_20px_rgba(0,255,255,0.1)];
+    @apply bg-slate-950/80 backdrop-blur-xl border border-primary/20 shadow-[0_0_20px_rgba(0,255,255,0.05)];
   }
   .text-neon {
     @apply text-primary drop-shadow-[0_0_8px_rgba(0,255,255,0.8)];
@@ -49,52 +50,47 @@
     width: 100%;
     height: 100%;
     background-image: url("https://grainy-gradients.vercel.app/noise.svg");
-    opacity: 0.03;
+    opacity: 0.02;
     pointer-events: none;
     z-index: 100;
   }
-  /* Difficulty Indicators */
-  .card-indicator-easy { @apply border-l-4 border-l-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.15)]; }
-  .card-indicator-medium { @apply border-l-4 border-l-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]; }
-  .card-indicator-hard { @apply border-l-4 border-l-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.15)]; }
+  /* Stat Chips - Hardware Module Aesthetic */
+  .stat-chip {
+    @apply flex flex-col items-center justify-center border border-primary/20 bg-black/40 px-4 py-1.5 transition-all hover:bg-primary/5 cursor-pointer;
+    clip-path: polygon(0 0, 100% 0, 100% 70%, 90% 100%, 0 100%);
+  }
+  /* Deep Web Separator */
+  .deep-web-separator {
+    @apply relative py-8 my-8 border-y border-rose-500/20 bg-rose-950/5 overflow-hidden;
+  }
+  .deep-web-separator::after {
+    content: "WARNING: UNAUTHORIZED SECTOR";
+    @apply absolute top-0 left-0 w-full text-[8px] font-mono text-rose-500/30 tracking-[1em] text-center py-1 bg-rose-500/10;
+  }
+  .card-indicator-easy { @apply border-l-2 border-l-emerald-500/60 shadow-[inset_10px_0_15px_-10px_rgba(16,185,129,0.2)]; }
+  .card-indicator-medium { @apply border-l-2 border-l-amber-500/60 shadow-[inset_10px_0_15px_-10px_rgba(245,158,11,0.2)]; }
+  .card-indicator-hard { @apply border-l-2 border-l-rose-500/60 shadow-[inset_10px_0_15px_-10px_rgba(244,63,94,0.2)]; }
   .badge-impossible {
-    @apply bg-rose-950/40 text-rose-500 border-rose-500/50 animate-pulse;
-    animation: flicker 2s infinite linear;
+    @apply bg-rose-950/40 text-rose-500 border-rose-500/50;
+    animation: text-flicker 3s infinite;
   }
-  @keyframes flicker {
+  @keyframes text-flicker {
     0%, 100% { opacity: 1; }
-    5% { opacity: 0.5; }
-    10% { opacity: 0.8; }
-    15% { opacity: 0.2; }
-    20% { opacity: 1; }
+    33% { opacity: 0.8; }
+    34% { opacity: 0.4; }
+    35% { opacity: 0.9; }
   }
-  .cyber-grid {
-    background-size: 40px 40px;
-    background-image:
-      linear-gradient(to right, rgba(0, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
-  }
-}
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
 }
 .scanline::after {
   content: "";
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100px;
-  background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.05), transparent);
-  animation: scanline 12s linear infinite;
+  background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.03), transparent);
+  animation: scanline 10s linear infinite;
   pointer-events: none;
   z-index: 50;
 }
-@keyframes glitch-entry {
-  0% { opacity: 0; transform: scale(0.95) skewX(-2deg); }
-  20% { opacity: 0.8; transform: scale(1.02) skewX(2deg); }
-  40% { opacity: 0.5; transform: scale(0.98); }
-  60% { opacity: 1; transform: scale(1.01) skewX(-1deg); }
-  100% { opacity: 1; transform: scale(1); }
-}
-.glitch-entry {
-  animation: glitch-entry 0.5s ease-out forwards;
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
 }
