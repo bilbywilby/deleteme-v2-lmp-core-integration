@@ -1,6 +1,6 @@
 # Cloudflare Workers Full-Stack Template
 
-[![Deploy to Cloudflare][cloudflarebutton]]
+[![Deploy to Cloudflare][![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/deleteme-v2-lmp-core-integration)]
 
 A production-ready full-stack application template built with Cloudflare Workers for the backend API, React for the frontend, and Durable Objects for persistent storage. Features real-time chat boards, user management, and seamless local development with hot reload.
 
@@ -123,7 +123,7 @@ Shared types: `shared/types.ts`.
 
 Your app will be live at `https://<worker-name>.<your-subdomain>.workers.dev`.
 
-[Deploy instantly to Cloudflare][cloudflarebutton]
+[Deploy instantly to Cloudflare][![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/bilbywilby/deleteme-v2-lmp-core-integration)
 
 ### Custom Domain
 ```bash
