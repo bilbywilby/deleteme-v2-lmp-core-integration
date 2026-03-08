@@ -1,12 +1,13 @@
 import { IndexedEntity, Entity, Index } from "./core-utils";
-import type { Identity, Service, Broker, ServiceProgress, DeletionEvent, SemanticTemplate, CustomService } from "@shared/types";
+import type { Identity, Service, Broker, ServiceProgress, DeletionEvent, SemanticTemplate, CustomService, SessionCheckpoint } from "@shared/types";
 import { MOCK_IDENTITY, SERVICES, MOCK_TEMPLATES } from "@shared/mock-data";
 export class IdentityEntity extends Entity<Identity> {
   static readonly entityName = "identity";
   static readonly initialState: Identity = {
     ...MOCK_IDENTITY,
     userName: "OPERATOR_01",
-    apiKey: ""
+    apiKey: "",
+    checkpointId: ""
   };
 }
 export class ServiceDefinitionEntity extends IndexedEntity<Service> {
@@ -33,10 +34,25 @@ export class GlobalMemoryEntity extends Entity<{ templates: SemanticTemplate[] }
   static readonly entityName = "global-memory";
   static readonly initialState = { templates: MOCK_TEMPLATES };
 }
+export class SessionCheckpointEntity extends IndexedEntity<SessionCheckpoint> {
+  static readonly entityName = "session-checkpoint";
+  static readonly indexName = "session-checkpoints-idx";
+  static readonly initialState: SessionCheckpoint = {
+    id: "",
+    userId: "main",
+    state: {},
+    version: 0,
+    updatedAt: 0
+  };
+}
 export class EventLogEntity extends Entity<{ events: DeletionEvent[] }> {
   static readonly entityName = "event-log";
   static readonly initialState = { events: [] };
-  async addEvent(event: Omit<DeletionEvent, 'id' | 'timestamp'>): Promise<DeletionEvent> {
+  async addEvent(event: Omit<DeletionEvent, 'id' | 'timestamp'>): Promise<DeletionEvent | null> {
+    const existing = event.idempotencyKey 
+      ? (await this.getState()).events.find(e => e.idempotencyKey === event.idempotencyKey)
+      : null;
+    if (existing) return existing;
     const newEvent: DeletionEvent = {
       ...event,
       id: crypto.randomUUID(),

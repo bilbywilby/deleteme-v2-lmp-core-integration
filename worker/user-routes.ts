@@ -6,10 +6,12 @@ import {
   IdentityEntity,
   EventLogEntity,
   GlobalMemoryEntity,
-  CustomServiceEntity
+  CustomServiceEntity,
+  SessionCheckpointEntity
 } from "./entities";
-import { ok, bad, isStr, Index } from './core-utils';
-import type { CustomService, TemplateType } from "@shared/types";
+import { SemanticEngine } from "./semantic-engine";
+import { ok, bad, isStr, Index, notFound } from './core-utils';
+import type { CustomService, TemplateType, MemoryLayer, LmpQuery } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/oblivion/data', async (c) => {
     await ServiceDefinitionEntity.ensureSeed(c.env);
@@ -25,56 +27,85 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       logs: logs.events
     });
   });
-  app.post('/api/oblivion/custom-service', async (c) => {
-    const body = await c.req.json() as CustomService;
-    if (!body.name || !body.url) return bad(c, "Name and URL required");
-    const service = await CustomServiceEntity.create(c.env, {
-      ...body,
-      id: body.id || crypto.randomUUID(),
-      isCustom: true,
-      ownerId: "main"
-    });
-    await new EventLogEntity(c.env, 'main').addEvent({
-      sessionId: 'main',
-      type: 'custom_service_created',
-      content: `Custom service node registered: ${service.name}`
-    });
-    return ok(c, service);
-  });
-  app.post('/api/oblivion/progress', async (c) => {
-    const body = await c.req.json() as { id: string; done?: boolean; favorite?: boolean; notes?: string };
-    const ent = new ServiceProgressEntity(c.env, body.id);
-    const state = await ent.mutate(s => ({
-      ...s,
-      id: body.id,
-      done: body.done ?? s.done,
-      favorite: body.favorite ?? s.favorite,
-      notes: body.notes ?? s.notes,
+  app.post('/api/sessions/init', async (c) => {
+    const id = crypto.randomUUID();
+    const checkpoint = await SessionCheckpointEntity.create(c.env, {
+      id,
+      userId: 'main',
+      state: { initializedAt: Date.now() },
+      version: 1,
       updatedAt: Date.now()
-    }));
-    const idx = new Index<string>(c.env, ServiceProgressEntity.indexName);
-    await idx.add(body.id);
-    return ok(c, state);
-  });
-  app.post('/api/oblivion/identity', async (c) => {
-    const body = await c.req.json();
-    const ent = new IdentityEntity(c.env, 'main');
-    await ent.save(body);
-    await new EventLogEntity(c.env, 'main').addEvent({
-      sessionId: 'main',
-      type: 'identity_update',
-      content: 'LMP Identity Profile Synchronized'
     });
-    return ok(c, body);
+    return ok(c, checkpoint);
+  });
+  app.post('/api/checkpoints/save', async (c) => {
+    const { id, state, version } = await c.req.json();
+    const ent = new SessionCheckpointEntity(c.env, id);
+    try {
+      const result = await ent.mutate(current => {
+        if (current.version !== version) {
+          throw new Error("409 Conflict");
+        }
+        return {
+          ...current,
+          state,
+          version: current.version + 1,
+          updatedAt: Date.now()
+        };
+      });
+      return ok(c, result);
+    } catch (e: any) {
+      if (e.message === "409 Conflict") return c.json({ success: false, error: "Conflict", code: 409 }, 409);
+      return bad(c, e.message);
+    }
+  });
+  app.post('/api/memory/retrieve/:type', async (c) => {
+    const type = c.req.param('type') as MemoryLayer;
+    const { context, threshold = 0.7 } = await c.req.json() as LmpQuery;
+    if (type === 'semantic') {
+      const memory = await new GlobalMemoryEntity(c.env, 'main').getState();
+      const results = await SemanticEngine.similaritySearch(context, memory.templates, t => t.template, threshold);
+      return ok(c, results.map(r => ({
+        content: r.item.template,
+        score: r.score,
+        layer: 'semantic',
+        metadata: { type: r.item.type, service: r.item.service }
+      })));
+    }
+    if (type === 'episodic') {
+      const log = await new EventLogEntity(c.env, 'main').getState();
+      const results = await SemanticEngine.similaritySearch(context, log.events, e => e.content, threshold);
+      return ok(c, results.map(r => ({
+        content: r.item.content,
+        score: r.score,
+        layer: 'episodic',
+        metadata: { type: r.item.type, timestamp: r.item.timestamp }
+      })));
+    }
+    return bad(c, "Unsupported layer retrieval");
   });
   app.post('/api/enhance-email', async (c) => {
-    const { serviceId, templateId } = await c.req.json() as { serviceId: string; templateId?: string };
+    const { serviceId, templateId, context } = await c.req.json();
     const identity = await new IdentityEntity(c.env, 'main').getState();
     const memory = await new GlobalMemoryEntity(c.env, 'main').getState();
-    let tpl = templateId 
-      ? memory.templates.find(t => t.id === templateId) 
-      : memory.templates[0];
+    const logs = await new EventLogEntity(c.env, 'main').getState();
+    // 1. Find similar successful patterns if context provided
+    let tpl;
+    if (context) {
+      const semanticMatches = await SemanticEngine.similaritySearch(context, memory.templates, t => t.template, 0.6);
+      if (semanticMatches.length > 0) tpl = semanticMatches[0].item;
+    }
+    if (!tpl) {
+      tpl = templateId 
+        ? memory.templates.find(t => t.id === templateId) 
+        : memory.templates[0];
+    }
     if (!tpl) tpl = memory.templates[0];
+    // 2. Perform mock similarity check against history
+    const historyMatches = await SemanticEngine.similaritySearch(tpl.template, logs.events, e => e.content, 0.85);
+    const avgSuccessScore = historyMatches.length > 0 
+      ? historyMatches.reduce((acc, m) => acc + m.score, 0) / historyMatches.length 
+      : 0.95; // default high confidence for first-time use
     let content = tpl.template;
     content = content.replace(/{{fullName}}/g, identity.fullName || "OPERATOR_NULL");
     content = content.replace(/{{email}}/g, identity.email || "");
@@ -84,18 +115,33 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     await new EventLogEntity(c.env, 'main').addEvent({
       sessionId: 'main',
       type: 'draft_generated',
-      content: `Enhanced draft generated for ${serviceId} using ${tpl.type.toUpperCase()} protocol`,
-      metadata: { templateType: tpl.type }
+      content: `Enhanced draft generated for ${serviceId}. Confidence Score: ${(avgSuccessScore * 100).toFixed(1)}%`,
+      metadata: { templateType: tpl.type, similarityScore: avgSuccessScore }
     });
-    return ok(c, { content, template: tpl });
+    return ok(c, { content, template: tpl, score: avgSuccessScore });
   });
-  app.post('/api/oblivion/log', async (c) => {
-    const { type, content } = await c.req.json();
-    const event = await new EventLogEntity(c.env, 'main').addEvent({
+  app.post('/api/oblivion/progress', async (c) => {
+    const body = await c.req.json();
+    const ent = new ServiceProgressEntity(c.env, body.id);
+    const state = await ent.mutate(s => ({
+      ...s,
+      id: body.id,
+      done: body.done ?? s.done,
+      favorite: body.favorite ?? s.favorite,
+      notes: body.notes ?? s.notes,
+      updatedAt: Date.now()
+    }));
+    await new Index<string>(c.env, ServiceProgressEntity.indexName).add(body.id);
+    return ok(c, state);
+  });
+  app.post('/api/oblivion/identity', async (c) => {
+    const body = await c.req.json();
+    await new IdentityEntity(c.env, 'main').save(body);
+    await new EventLogEntity(c.env, 'main').addEvent({
       sessionId: 'main',
-      type,
-      content
+      type: 'identity_update',
+      content: 'LMP Identity Profile Synchronized'
     });
-    return ok(c, event);
+    return ok(c, body);
   });
 }

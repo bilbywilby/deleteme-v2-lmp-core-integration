@@ -18,7 +18,7 @@ export interface Service {
   category: string;
   difficulty: Difficulty;
   contactMethod: ContactMethod;
-  confidence: number; // 0-100
+  confidence: number;
   url: string;
   privateEmail?: string;
   waitDays: number;
@@ -35,7 +35,7 @@ export interface Broker extends Service {
   optOutUrl: string;
 }
 export interface ServiceProgress {
-  id: string; // matches service id
+  id: string;
   done: boolean;
   favorite: boolean;
   notes: string;
@@ -47,10 +47,31 @@ export interface DeletionEvent {
   type: 'initialization' | 'draft_generated' | 'email_sent' | 'manual_update' | 'archived' | 'broker_opt_out' | 'identity_update' | 'custom_service_created';
   content: string;
   timestamp: number;
+  idempotencyKey?: string;
   metadata?: {
     templateType?: TemplateType;
+    similarityScore?: number;
     [key: string]: any;
   };
+}
+export interface SessionCheckpoint {
+  id: string;
+  userId: string;
+  state: any;
+  version: number;
+  updatedAt: number;
+}
+export interface MemoryRetrievalResult {
+  content: string;
+  score: number;
+  layer: MemoryLayer;
+  metadata?: any;
+}
+export interface LmpQuery {
+  type: MemoryLayer;
+  context: string;
+  policy?: TemplateType;
+  threshold?: number;
 }
 export interface Identity {
   fullName: string;
@@ -60,6 +81,7 @@ export interface Identity {
   dob: string;
   userName?: string;
   apiKey?: string;
+  checkpointId?: string;
 }
 export interface Session {
   id: string;
