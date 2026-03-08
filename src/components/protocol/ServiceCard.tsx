@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, Zap, Star, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, Zap } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,28 +18,41 @@ export const ServiceCard = React.memo(({ service, progress, isSelected, onClick,
   const diff = DIFF_META[service.difficulty];
   const method = CONTACT_METHOD_MAP[service.contactMethod];
   const Icon = method.icon;
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  }, [onClick]);
+  const cardId = `service-card-${service.id}`;
+  const titleId = `service-title-${service.id}`;
   return (
-    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="h-full">
       <Card
+        id={cardId}
         onClick={onClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-labelledby={titleId}
+        aria-pressed={isSelected}
         className={cn(
-          "glass-cyber h-full transition-all cursor-pointer group",
+          "glass-cyber h-full transition-all cursor-pointer group focus-visible:ring-2 focus-visible:ring-primary outline-none",
           diff.border,
           progress?.done ? "opacity-30 grayscale" : "hover:border-primary/50",
-          isSelected ? "border-primary/60 ring-1 ring-primary/20 bg-primary/5" : ""
+          isSelected ? "border-primary/60 ring-1 ring-primary/20 bg-primary/5 shadow-primary" : ""
         )}
-        role="article"
       >
         <CardContent className="p-5 flex flex-col h-full gap-4">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
-              <h3 className="font-bold text-sm font-display uppercase tracking-wider group-hover:text-primary transition-colors">
+              <h3 id={titleId} className="font-bold text-sm font-display uppercase tracking-wider group-hover:text-primary transition-colors">
                 {service.name}
               </h3>
               <p className="text-[10px] text-muted-foreground font-mono">{service.category}</p>
             </div>
             {isSelected && (
-              <Badge className="bg-primary text-background text-[8px] font-bold h-4 px-1.5 rounded-none">
+              <Badge className="bg-primary text-background text-[8px] font-bold h-4 px-1.5 rounded-none" aria-hidden="true">
                 [SELECTED]
               </Badge>
             )}
@@ -51,21 +64,23 @@ export const ServiceCard = React.memo(({ service, progress, isSelected, onClick,
               </Badge>
               <div className="flex-1 border-t border-primary/5" />
               <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Icon size={10} />
+                <Icon size={10} aria-hidden="true" />
                 <span className="text-[8px] font-mono">{method.label}</span>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={(e) => { e.stopPropagation(); window.open(service.url, '_blank'); }} 
+              <Button
+                variant="outline"
+                tabIndex={-1}
+                onClick={(e) => { e.stopPropagation(); window.open(service.url, '_blank'); }}
                 className="flex-1 text-[9px] h-7 border-primary/10 font-bold font-mono rounded-none uppercase hover:bg-primary/5"
                 aria-label={`Open ${service.name} portal`}
               >
                 <ExternalLink size={10} className="mr-1.5" /> Portal
               </Button>
-              <Button 
-                onClick={(e) => { e.stopPropagation(); onEnhance(service); }} 
+              <Button
+                tabIndex={-1}
+                onClick={(e) => { e.stopPropagation(); onEnhance(service); }}
                 disabled={progress?.done}
                 className="flex-1 bg-primary text-background text-[9px] h-7 font-bold font-mono rounded-none uppercase hover:bg-primary/90 transition-colors"
                 aria-label={`Enhance deletion protocol for ${service.name}`}
