@@ -77,7 +77,9 @@ function updateWranglerJsonc() {
 }
 
 function runSetupCommands() {
-    const commands = [];
+    const commands = [
+    "bun add lucide-react framer-motion clsx tailwind-merge date-fns zustand"
+];
     
     if (commands.length === 0) {
         console.log('⊘ No setup commands to run');
