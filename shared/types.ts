@@ -11,6 +11,7 @@ export interface LmpLayerStatus {
 }
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type ContactMethod = 'direct-link' | 'email' | 'ticket' | 'phone' | 'postal';
+export type TemplateType = 'gdpr' | 'ccpa';
 export interface Service {
   id: string;
   name: string;
@@ -24,6 +25,7 @@ export interface Service {
   requiresVerification: boolean;
   requiresDocs: boolean;
   notes?: string;
+  isImpossible?: boolean;
 }
 export interface CustomService extends Service {
   isCustom: boolean;
@@ -45,7 +47,10 @@ export interface DeletionEvent {
   type: 'initialization' | 'draft_generated' | 'email_sent' | 'manual_update' | 'archived' | 'broker_opt_out' | 'identity_update' | 'custom_service_created';
   content: string;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: {
+    templateType?: TemplateType;
+    [key: string]: any;
+  };
 }
 export interface Identity {
   fullName: string;
@@ -67,6 +72,7 @@ export interface Session {
 export interface SemanticTemplate {
   id: string;
   service: string;
+  type: TemplateType;
   template: string;
   effectiveness: number;
 }

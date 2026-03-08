@@ -13,19 +13,25 @@
     --border: 190 100% 30% / 0.3;
     --ring: 190 100% 50%;
     --radius: 0.25rem;
+    /* OBLIVION v5 DESIGN SYSTEM */
+    --ff-head: 'Syne', sans-serif;
+    --ff-body: 'Space Mono', monospace;
+    --ff-surface: 230 25% 4%;
+    --ff-ink: 180 100% 90%;
+    --ff-accent: 190 100% 50%;
   }
   body {
     @apply bg-background text-foreground selection:bg-primary/30;
-    font-family: 'Space Mono', monospace;
+    font-family: var(--ff-body);
     background-image:
-      radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 50%),
-      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-      linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.03) 0%, transparent 50%),
+      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+      linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
     background-size: 100% 100%, 100% 2px, 3px 100%;
   }
 }
 @layer components {
-  .font-display { font-family: 'Syne', sans-serif; }
+  .font-display { font-family: var(--ff-head); }
   .glass-cyber {
     @apply bg-slate-950/80 backdrop-blur-xl border border-primary/20 shadow-[0_0_20px_rgba(0,255,255,0.1)];
   }
@@ -34,26 +40,39 @@
   }
   .grain {
     position: relative;
+    overflow-x: hidden;
   }
   .grain::before {
     content: "";
-    position: absolute;
+    position: fixed;
     inset: 0;
     width: 100%;
     height: 100%;
     background-image: url("https://grainy-gradients.vercel.app/noise.svg");
-    opacity: 0.05;
+    opacity: 0.03;
     pointer-events: none;
     z-index: 100;
   }
-  .card-glow-emerald { @apply shadow-[0_0_15px_rgba(16,185,129,0.15)] border-emerald-500/20; }
-  .card-glow-amber { @apply shadow-[0_0_15px_rgba(245,158,11,0.15)] border-amber-500/20; }
-  .card-glow-rose { @apply shadow-[0_0_15px_rgba(244,63,94,0.15)] border-rose-500/20; }
+  /* Difficulty Indicators */
+  .card-indicator-easy { @apply border-l-4 border-l-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.15)]; }
+  .card-indicator-medium { @apply border-l-4 border-l-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]; }
+  .card-indicator-hard { @apply border-l-4 border-l-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.15)]; }
+  .badge-impossible {
+    @apply bg-rose-950/40 text-rose-500 border-rose-500/50 animate-pulse;
+    animation: flicker 2s infinite linear;
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    5% { opacity: 0.5; }
+    10% { opacity: 0.8; }
+    15% { opacity: 0.2; }
+    20% { opacity: 1; }
+  }
   .cyber-grid {
     background-size: 40px 40px;
     background-image:
-      linear-gradient(to right, rgba(0, 255, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 255, 255, 0.02) 1px, transparent 1px);
   }
 }
 @keyframes scanline {
@@ -62,10 +81,10 @@
 }
 .scanline::after {
   content: "";
-  position: absolute;
+  position: fixed;
   top: 0; left: 0; width: 100%; height: 100px;
-  background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.08), transparent);
-  animation: scanline 8s linear infinite;
+  background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.05), transparent);
+  animation: scanline 12s linear infinite;
   pointer-events: none;
   z-index: 50;
 }

@@ -13,6 +13,7 @@ const generateServices = (count: number): Service[] => {
     { id: 'google', name: 'Google', category: 'SaaS', difficulty: 'easy', contactMethod: 'direct-link', confidence: 98, url: 'https://myaccount.google.com/delete-services-or-account', waitDays: 0, requiresVerification: true, requiresDocs: false },
     { id: 'x', name: 'X (Twitter)', category: 'Social', difficulty: 'easy', contactMethod: 'direct-link', confidence: 92, url: 'https://twitter.com/settings/deactivate', waitDays: 30, requiresVerification: true, requiresDocs: false },
     { id: 'acxiom', name: 'Acxiom', category: 'Data Broker', difficulty: 'hard', contactMethod: 'email', confidence: 85, url: 'https://www.acxiom.com/privacy/opt-out/', privateEmail: 'privacy@acxiom.com', waitDays: 45, requiresVerification: true, requiresDocs: true },
+    { id: 'palantir', name: 'Palantir Technologies', category: 'SaaS', difficulty: 'hard', contactMethod: 'postal', confidence: 40, url: 'https://www.palantir.com/privacy-and-security/', waitDays: 90, requiresVerification: true, requiresDocs: true, isImpossible: true },
     { id: 'epsilon', name: 'Epsilon', category: 'Data Broker', difficulty: 'medium', contactMethod: 'ticket', confidence: 80, url: 'https://www.epsilon.com/us/consumer-preference-center', waitDays: 30, requiresVerification: false, requiresDocs: false }
   ];
   for (let i = services.length; i < count; i++) {
@@ -29,6 +30,7 @@ const generateServices = (count: number): Service[] => {
       waitDays: (i % 60),
       requiresVerification: i % 5 === 0,
       requiresDocs: i % 10 === 0,
+      isImpossible: i % 25 === 0,
       notes: `Generated seed data for protocol ${i}`
     });
   }
@@ -42,7 +44,15 @@ export const MOCK_TEMPLATES: SemanticTemplate[] = [
   {
     id: 't-gdpr',
     service: 'Standard',
+    type: 'gdpr',
     template: 'Subject: Right to Erasure Request (GDPR Article 17)\n\nTo whom it may concern,\n\nI, {{fullName}}, am writing to formally request the permanent deletion of my account and all associated personal data from your systems. This request is made under Article 17 of the GDPR.\n\nIdentity Reference:\nEmail: {{email}}\nAddress: {{address}}\n\nPlease confirm receipt and execution within 30 days.',
     effectiveness: 99
+  },
+  {
+    id: 't-ccpa',
+    service: 'Standard',
+    type: 'ccpa',
+    template: 'Subject: CCPA Right to Delete Request\n\nTo the Privacy Team,\n\nI am a California resident and I am exercising my right to request that you delete any personal information about me which you have collected. This request is submitted pursuant to the California Consumer Privacy Act (CCPA).\n\nMy Details:\nFull Name: {{fullName}}\nEmail Associated: {{email}}\n\nPlease provide verification of the deletion within 45 days as required by law.',
+    effectiveness: 95
   }
 ];
