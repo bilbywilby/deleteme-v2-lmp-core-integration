@@ -78,7 +78,8 @@ function updateWranglerJsonc() {
 
 function runSetupCommands() {
     const commands = [
-    "bun add lucide-react framer-motion clsx tailwind-merge date-fns zustand"
+    "bun add lucide-react framer-motion clsx tailwind-merge date-fns zustand",
+    "bun remove react-hotkeys-hook"
 ];
     
     if (commands.length === 0) {
