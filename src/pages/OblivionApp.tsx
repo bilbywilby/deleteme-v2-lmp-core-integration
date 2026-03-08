@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Zap, Search, Filter, Star, CheckCircle2,
-  ExternalLink, Mail, Terminal, Settings, User, Copy, X, Dog, Plus, ChevronRight, AlertTriangle, Cpu, Globe, RefreshCcw, Clock, Box
+  ExternalLink, Mail, Terminal, Settings, User, Copy, X, Dog, Plus, ChevronRight, AlertTriangle, Cpu, Globe, RefreshCcw, Clock, Box, Layers
 } from 'lucide-react';
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcuts';
 import { api } from '@/lib/api-client';
@@ -14,15 +14,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Progress } from '@/components/ui/progress';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LMPVisualizer } from '@/components/ui/lmp-visualizer';
+import { EventTimeline } from '@/components/ui/event-timeline';
 import { toast, Toaster } from 'sonner';
 import { Service, ServiceProgress, Identity, DeletionEvent, CustomService, TemplateType } from '@shared/types';
-import { useSession, useCheckpoint, useSemanticEmailEnhancement, useMemoryRetrieval } from '@/hooks/use-lmp';
-function HuskyLogo() {
+import { useSession, useCheckpoint, useSemanticEmailEnhancement, useMemoryRetrieval, useSemanticClusters } from '@/hooks/use-lmp';
+function HuskyLogo({ syncing = false }: { syncing?: boolean }) {
   return (
     <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="relative flex items-center justify-center">
       <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full animate-pulse" />
       <div className="relative glass-cyber p-2 rounded-lg border-primary/30"><Dog className="w-7 h-7 text-neon" /></div>
-      <div className="absolute -bottom-1 -right-1 bg-primary text-background text-[7px] font-bold px-1 rounded border border-primary">V5</div>
+      <div className="absolute -bottom-1 -right-1 bg-primary text-background text-[7px] font-bold px-1 rounded border border-primary">
+        {syncing ? 'SYNC' : 'V5'}
+      </div>
     </motion.div>
   );
 }
@@ -50,7 +54,8 @@ export function OblivionApp() {
   const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
   const [lastCommand, setLastCommand] = useState<string | null>(null);
   const { enhance, isEnhancing } = useSemanticEmailEnhancement();
-  const { results: memoryResults, retrieve: retrieveMemory, loading: memLoading } = useMemoryRetrieval(selectedService);
+  const { results: memoryResults, retrieve: retrieveMemory, loading: memLoading } = useMemoryRetrieval(session, selectedService);
+  const { analyze: analyzeTrends, clusters: trends, loading: trendsLoading } = useSemanticClusters();
   const { saveCheckpoint, isSyncing, hasConflict, setHasConflict, resolution } = useCheckpoint(session, () => {
     toast.error("PROTOCOL COLLISION DETECTED");
   });
@@ -72,6 +77,11 @@ export function OblivionApp() {
       return () => clearTimeout(timer);
     }
   }, [data, saveCheckpoint, appLoading]);
+  useEffect(() => {
+    if (activeTab === 'logs') {
+      analyzeTrends();
+    }
+  }, [activeTab, analyzeTrends]);
   const closeOverlays = useCallback(() => {
     setEmailModal(false);
     setSettingsOpen(false);
@@ -86,9 +96,9 @@ export function OblivionApp() {
       setEmailDraft(res.content);
       setConfidence(res.confidence);
       retrieveMemory(['semantic', 'episodic', 'parametric']);
+      fetchProtocolData();
     }
-  }, [enhance, retrieveMemory]);
-  // Tactical Shortcuts
+  }, [enhance, retrieveMemory, fetchProtocolData]);
   useKeyboardShortcut('Escape', () => {
     setLastCommand('ESC');
     closeOverlays();
@@ -133,9 +143,9 @@ export function OblivionApp() {
   }, [data, search, filters]);
   if (sessionLoading || appLoading || !data) return (
     <div className="h-screen flex flex-col items-center justify-center bg-background cyber-grid scanline">
-      <HuskyLogo />
+      <HuskyLogo syncing />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 text-center space-y-4">
-        <h2 className="text-primary font-display font-bold tracking-[0.4em] uppercase text-xl text-neon">INITIALIZING_V5</h2>
+        <h2 className="text-primary font-display font-bold tracking-[0.4em] uppercase text-xl text-neon">INITIALIZING_ZENITH</h2>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground uppercase font-mono">
            <Globe size={12} className="animate-spin text-primary" />
            <span>NEURAL_HANDSHAKE_ACTIVE</span>
@@ -143,7 +153,9 @@ export function OblivionApp() {
       </motion.div>
     </div>
   );
-  const progressPercent = (data.progress.filter(p => p.done).length / data.services.length) * 100;
+  const progressPercent = data.services.length > 0 
+    ? (data.progress.filter(p => p.done).length / data.services.length) * 100 
+    : 0;
   return (
     <div className="min-h-screen bg-background text-foreground cyber-grid scanline pb-24 grain">
       <AnimatePresence>
@@ -166,7 +178,7 @@ export function OblivionApp() {
         <header className="space-y-8 mb-12">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="flex items-center gap-6">
-              <HuskyLogo />
+              <HuskyLogo syncing={isSyncing} />
               <div>
                 <h1 className="text-3xl font-bold font-display tracking-tight text-neon uppercase">OBLIVION <span className="text-muted-foreground font-light text-xl">ZENITH</span></h1>
                 <div className="flex items-center gap-4 text-[10px] text-muted-foreground uppercase font-mono mt-1">
@@ -180,6 +192,7 @@ export function OblivionApp() {
                       HASH: <span className="text-primary/70">{session.contextHash}</span>
                     </div>
                   )}
+                  {isSyncing && <span className="text-blue-400 animate-pulse text-[8px]">[SYNCING_BUFFER]</span>}
                 </div>
               </div>
             </div>
@@ -196,33 +209,29 @@ export function OblivionApp() {
               <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest border-b border-primary/10 pb-3"><Filter size={14} /> Matrix Filters</div>
               <Input placeholder="Search Nodes..." className="bg-black/40 border-primary/20 text-xs font-mono h-10 rounded-none" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            {selectedService && (
-              <div className="glass-cyber p-5 space-y-4">
-                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest border-b border-primary/10 pb-3"><Zap size={14} /> Hybrid Memory (1536d)</div>
-                <div className="space-y-3">
-                  {memLoading ? <div className="text-[9px] animate-pulse text-primary font-mono">ANALYZING LMP LAYERS...</div> : memoryResults.map((res, i) => (
-                    <div key={i} className="p-2 bg-primary/5 border border-primary/10 text-[9px] font-mono leading-tight">
-                      <div className="text-primary/40 mb-1 flex justify-between uppercase">
-                        <span>{res.layer} ::: {res.latency}ms</span>
-                        <span>{res.score.toFixed(3)}%</span>
-                      </div>
-                      <p className="line-clamp-2 italic opacity-60">"{res.content}"</p>
-                      {res.metadata?.clusterId !== undefined && (
-                        <div className="mt-1 flex items-center gap-1 text-emerald-500/50 uppercase text-[8px]">
-                          <Box size={8} /> Cluster_{res.metadata.clusterId}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+            <LMPVisualizer 
+              activeLayer={memoryResults[0]?.layer} 
+              isProcessing={memLoading || isEnhancing} 
+            />
+            {trends.length > 0 && (
+              <div className="glass-cyber p-5 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold uppercase tracking-widest border-b border-emerald-500/10 pb-2">
+                  <Layers size={12} /> Trend Analysis
                 </div>
+                {trends.map((t, idx) => (
+                  <div key={idx} className="text-[9px] font-mono text-slate-400 bg-emerald-500/5 p-2 border-l border-emerald-500/30">
+                    <span className="text-emerald-500 font-bold uppercase block mb-1">PATTERN: {t.id}</span>
+                    {t.summary}
+                  </div>
+                ))}
               </div>
             )}
           </aside>
           <main className="lg:col-span-3">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="bg-slate-950/50 border border-primary/10 p-1 w-full flex justify-start h-auto gap-2 rounded-none mb-6">
-                <TabsTrigger value="services" className="data-[state=active]:bg-primary data-[state=active]:text-background uppercase font-bold text-[10px] px-8 py-3 rounded-none font-display">Target Matrix</TabsTrigger>
-                <TabsTrigger value="logs" className="data-[state=active]:bg-primary data-[state=active]:text-background uppercase font-bold text-[10px] px-8 py-3 rounded-none font-display">Event Stream</TabsTrigger>
+                <TabsTrigger value="services" className="data-[state=active]:bg-primary data-[state=active]:text-background uppercase font-bold text-[10px] px-8 py-3 rounded-none font-display text-xs">Target Matrix</TabsTrigger>
+                <TabsTrigger value="logs" className="data-[state=active]:bg-primary data-[state=active]:text-background uppercase font-bold text-[10px] px-8 py-3 rounded-none font-display text-xs">Event Stream</TabsTrigger>
               </TabsList>
               <TabsContent value="services">
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -231,7 +240,7 @@ export function OblivionApp() {
                     const isSelected = selectedService?.id === service.id;
                     return (
                       <motion.div key={service.id} variants={itemVariants} layout>
-                        <Card 
+                        <Card
                           onClick={() => setSelectedService(service)}
                           className={`glass-cyber h-full transition-all card-indicator-${service.difficulty} cursor-pointer ${progress?.done ? 'opacity-30' : 'hover:border-primary/50'} ${isSelected ? 'border-primary/60 ring-1 ring-primary/20' : ''}`}
                         >
@@ -252,10 +261,7 @@ export function OblivionApp() {
                 </motion.div>
               </TabsContent>
               <TabsContent value="logs">
-                 {/* EventTimeline usually lives here but simplified for parity */}
-                 <div className="p-12 text-center text-primary/20 font-mono text-xs border border-primary/10 bg-black/40">
-                   NEURAL_STREAM_ENCRYPTED ::: CLUSTER_ANALYSIS_READY
-                 </div>
+                 <EventTimeline events={data.logs} />
               </TabsContent>
             </Tabs>
           </main>

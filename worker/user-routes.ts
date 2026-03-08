@@ -23,12 +23,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/health', (c) => {
     return ok(c, {
       status: 'OBLIVION_ACTIVE',
-      uptime: 0, // process.uptime() is not available in Workers
+      uptime: 0,
       lmp_version: '5.0.0-Hybrid'
     });
   });
   app.get('/api/oblivion/data', async (c) => {
     await ServiceDefinitionEntity.ensureSeed(c.env);
+    await GlobalMemoryEntity.ensureSeed(c.env);
     const services = await ServiceDefinitionEntity.list(c.env);
     const customServices = await CustomServiceEntity.list(c.env);
     const progress = await ServiceProgressEntity.list(c.env);
@@ -70,8 +71,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   app.post('/api/memory/retrieve', async (c) => {
     const query = await c.req.json() as MemoryQuery;
+    if (!query.sessionId) query.sessionId = 'main';
     const results = await MemoryCoordinator.retrieve(c.env, query);
     return ok(c, results);
+  });
+  app.post('/api/memory/analyze-trends', async (c) => {
+    const trends = await MemoryCoordinator.analyzeTrends(c.env);
+    return ok(c, trends);
   });
   app.post('/api/checkpoints/save', async (c) => {
     const { id, module, state, version } = await c.req.json();

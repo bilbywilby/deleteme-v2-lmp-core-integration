@@ -76,15 +76,15 @@ export function useCheckpoint(session: SessionCheckpoint | null, onConflict: (re
   }, [session, isSyncing, onConflict]);
   return { saveCheckpoint, isSyncing, hasConflict, setHasConflict, resolution };
 }
-export function useMemoryRetrieval(service: Service | null) {
+export function useMemoryRetrieval(session: SessionCheckpoint | null, service: Service | null) {
   const [results, setResults] = useState<MemoryResult[]>([]);
   const [loading, setLoading] = useState(false);
   const retrieve = useCallback(async (layers: MemoryLayer[] = ['semantic', 'episodic']) => {
-    if (!service) return;
+    if (!service || !session) return;
     setLoading(true);
     try {
       const query: MemoryQuery = {
-        sessionId: 'main',
+        sessionId: session.id,
         query: `${service.name} ${service.category}`,
         policy: { layers, minScore: 0.6, maxResults: 5 }
       };
@@ -98,7 +98,7 @@ export function useMemoryRetrieval(service: Service | null) {
     } finally {
       setLoading(false);
     }
-  }, [service]);
+  }, [service, session]);
   return { results, retrieve, loading };
 }
 export function useSemanticEmailEnhancement() {
