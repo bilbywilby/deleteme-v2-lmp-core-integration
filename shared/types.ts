@@ -9,13 +9,46 @@ export interface LmpLayerStatus {
   status: 'idle' | 'active' | 'synced';
   description: string;
 }
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export type ContactMethod = 'direct-link' | 'email' | 'ticket' | 'phone' | 'postal';
+export interface Service {
+  id: string;
+  name: string;
+  category: string;
+  difficulty: Difficulty;
+  contactMethod: ContactMethod;
+  confidence: number; // 0-100
+  url: string;
+  privateEmail?: string;
+  waitDays: number;
+  requiresVerification: boolean;
+  requiresDocs: boolean;
+  notes?: string;
+}
+export interface Broker extends Service {
+  optOutUrl: string;
+}
+export interface ServiceProgress {
+  id: string; // matches service id
+  done: boolean;
+  favorite: boolean;
+  notes: string;
+  updatedAt: number;
+}
 export interface DeletionEvent {
   id: string;
   sessionId: string;
-  type: 'initialization' | 'draft_generated' | 'email_sent' | 'manual_update' | 'archived';
+  type: 'initialization' | 'draft_generated' | 'email_sent' | 'manual_update' | 'archived' | 'broker_opt_out' | 'identity_update';
   content: string;
   timestamp: number;
   metadata?: Record<string, any>;
+}
+export interface Identity {
+  fullName: string;
+  email: string;
+  address: string;
+  phone: string;
+  dob: string;
 }
 export interface Session {
   id: string;
@@ -34,15 +67,4 @@ export interface SemanticTemplate {
 export interface User {
   id: string;
   name: string;
-}
-export interface Chat {
-  id: string;
-  title: string;
-}
-export interface ChatMessage {
-  id: string;
-  chatId: string;
-  userId: string;
-  text: string;
-  ts: number;
 }

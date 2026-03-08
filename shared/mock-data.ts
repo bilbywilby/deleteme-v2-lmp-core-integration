@@ -1,49 +1,48 @@
-import type { User, Chat, ChatMessage, SemanticTemplate, Session, DeletionEvent } from './types';
-export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'LMP Operator' }
-];
-export const MOCK_CHATS: Chat[] = [
-  { id: 'c1', title: 'System Logs' },
-];
-export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
-  { id: 'm1', chatId: 'c1', userId: 'u1', text: 'LMP Core Online', ts: Date.now() },
-];
+import type { Service, Broker, SemanticTemplate, Identity } from './types';
+export const MOCK_IDENTITY: Identity = {
+  fullName: 'Protagonist One',
+  email: 'p1@example.com',
+  address: '123 Neo-Tokyo Blvd, Sector 7',
+  phone: '+1-555-0199',
+  dob: '1990-01-01'
+};
+const CATEGORIES = ['Social', 'FinTech', 'Data Broker', 'E-commerce', 'SaaS', 'Health'];
+const generateServices = (count: number): Service[] => {
+  const services: Service[] = [
+    { id: 'fb', name: 'Facebook', category: 'Social', difficulty: 'medium', contactMethod: 'direct-link', confidence: 95, url: 'https://facebook.com/help/delete_account', waitDays: 30, requiresVerification: true, requiresDocs: false },
+    { id: 'google', name: 'Google', category: 'SaaS', difficulty: 'easy', contactMethod: 'direct-link', confidence: 98, url: 'https://myaccount.google.com/delete-services-or-account', waitDays: 0, requiresVerification: true, requiresDocs: false },
+    { id: 'x', name: 'X (Twitter)', category: 'Social', difficulty: 'easy', contactMethod: 'direct-link', confidence: 92, url: 'https://twitter.com/settings/deactivate', waitDays: 30, requiresVerification: true, requiresDocs: false },
+    { id: 'acxiom', name: 'Acxiom', category: 'Data Broker', difficulty: 'hard', contactMethod: 'email', confidence: 85, url: 'https://www.acxiom.com/privacy/opt-out/', privateEmail: 'privacy@acxiom.com', waitDays: 45, requiresVerification: true, requiresDocs: true },
+    { id: 'epsilon', name: 'Epsilon', category: 'Data Broker', difficulty: 'medium', contactMethod: 'ticket', confidence: 80, url: 'https://www.epsilon.com/us/consumer-preference-center', waitDays: 30, requiresVerification: false, requiresDocs: false }
+  ];
+  for (let i = services.length; i < count; i++) {
+    const diffs: ('easy' | 'medium' | 'hard')[] = ['easy', 'medium', 'hard'];
+    const methods: ('direct-link' | 'email' | 'ticket' | 'phone')[] = ['direct-link', 'email', 'ticket', 'phone'];
+    services.push({
+      id: `svc-${i}`,
+      name: `Service ${i}`,
+      category: CATEGORIES[i % CATEGORIES.length],
+      difficulty: diffs[i % 3],
+      contactMethod: methods[i % 4],
+      confidence: 70 + (i % 30),
+      url: `https://example.com/delete/${i}`,
+      waitDays: (i % 60),
+      requiresVerification: i % 5 === 0,
+      requiresDocs: i % 10 === 0,
+      notes: `Generated seed data for protocol ${i}`
+    });
+  }
+  return services;
+};
+export const SERVICES = generateServices(100);
+export const DATA_BROKERS: Broker[] = SERVICES
+  .filter(s => s.category === 'Data Broker')
+  .map(s => ({ ...s, optOutUrl: s.url }));
 export const MOCK_TEMPLATES: SemanticTemplate[] = [
   {
-    id: 't1',
-    service: 'facebook',
-    template: 'Subject: Right to Erasure Request (GDPR)\n\nI am writing to formally request the deletion of my account associated with this email under Article 17 of the GDPR...',
-    effectiveness: 98
-  },
-  {
-    id: 't2',
-    service: 'instagram',
-    template: 'To the Privacy Team,\n\nPlease remove all personal data and images associated with my handle. I am exercise my right to be forgotten...',
-    effectiveness: 95
-  },
-  {
-    id: 't3',
-    service: 'google',
-    template: 'Request for account closure and data purging. Please confirm when all secondary backups have been cleared...',
-    effectiveness: 92
-  }
-];
-export const MOCK_SESSIONS: Session[] = [
-  {
-    id: 'sess-proto-1',
-    targetService: 'Facebook',
-    status: 'active',
-    createdAt: Date.now() - 3600000,
-    lastActive: Date.now(),
-    currentDraft: 'Initial draft for Facebook removal...'
-  }
-];
-export const MOCK_EVENTS: DeletionEvent[] = [
-  {
-    id: 'ev-1',
-    sessionId: 'sess-proto-1',
-    type: 'initialization',
-    content: 'Protocol initialized for target: Facebook',
-    timestamp: Date.now() - 3600000
+    id: 't-gdpr',
+    service: 'Standard',
+    template: 'Subject: Right to Erasure Request (GDPR Article 17)\n\nTo whom it may concern,\n\nI, {{fullName}}, am writing to formally request the permanent deletion of my account and all associated personal data from your systems. This request is made under Article 17 of the GDPR.\n\nIdentity Reference:\nEmail: {{email}}\nAddress: {{address}}\n\nPlease confirm receipt and execution within 30 days.',
+    effectiveness: 99
   }
 ];

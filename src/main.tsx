@@ -11,18 +11,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
 import '@/index.css'
-import { HomePage } from '@/pages/HomePage'
-import { SessionPage } from '@/pages/SessionPage'
+import { OblivionApp } from '@/pages/OblivionApp'
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <HomePage />,
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/session/:sessionId",
-    element: <SessionPage />,
+    element: <OblivionApp />,
     errorElement: <RouteErrorBoundary />,
   },
 ]);
