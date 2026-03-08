@@ -9,6 +9,36 @@ export interface LmpLayerStatus {
   status: 'idle' | 'active' | 'synced';
   description: string;
 }
+export interface ClientMeta {
+  browser: string;
+  os: string;
+  timezone: string;
+  ip?: string;
+  userAgent: string;
+}
+export interface MemoryRetrievalPolicy {
+  layers: MemoryLayer[];
+  minScore: number;
+  maxResults: number;
+}
+export interface MemoryQuery {
+  sessionId: string;
+  query: string;
+  policy: MemoryRetrievalPolicy;
+  contextHash?: string;
+}
+export interface MemoryResult {
+  content: string;
+  layer: MemoryLayer;
+  score: number;
+  latency: number;
+  metadata?: any;
+}
+export interface SessionStartPayload {
+  userId: string;
+  clientMeta: ClientMeta;
+  initPayload?: any;
+}
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type ContactMethod = 'direct-link' | 'email' | 'ticket' | 'phone' | 'postal';
 export type TemplateType = 'gdpr' | 'ccpa';
@@ -60,12 +90,15 @@ export interface SessionCheckpoint {
   state: any;
   version: number;
   updatedAt: number;
+  clientMeta?: ClientMeta;
+  contextHash?: string;
 }
 export interface MemoryRetrievalResult {
   content: string;
   score: number;
   layer: MemoryLayer;
   metadata?: any;
+  latency?: number;
 }
 export interface LmpQuery {
   type: MemoryLayer;

@@ -1,20 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
-import type { 
-  SessionCheckpoint, 
-  MemoryRetrievalResult, 
-  MemoryLayer, 
-  DeletionEvent, 
-  Service, 
-  TemplateType 
+import type {
+  SessionCheckpoint,
+  MemoryResult,
+  MemoryLayer,
+  Service,
+  TemplateType,
+  SessionStartPayload,
+  MemoryQuery
 } from '@shared/types';
 export function useSession() {
   const [session, setSession] = useState<SessionCheckpoint | null>(null);
   const [loading, setLoading] = useState(true);
   const initSession = useCallback(async () => {
+    const clientMeta = {
+      browser: navigator.userAgent.includes("Chrome") ? "Chrome" : "Other",
+      os: navigator.platform,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      userAgent: navigator.userAgent
+    };
     try {
-      const res = await api<SessionCheckpoint>('/api/sessions/init', { method: 'POST' });
+      const res = await api<SessionCheckpoint>('/api/sessions/start', { 
+        method: 'POST',
+        body: JSON.stringify({ userId: 'main', clientMeta } as SessionStartPayload)
+      });
       setSession(res);
       return res;
     } catch (e) {
@@ -29,11 +39,12 @@ export function useSession() {
   }, [initSession]);
   return { session, setSession, loading };
 }
-export function useCheckpoint(session: SessionCheckpoint | null, onConflict: () => void) {
+export function useCheckpoint(session: SessionCheckpoint | null, onConflict: (res: any) => void) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasConflict, setHasConflict] = useState(false);
+  const [resolution, setResolution] = useState<string | null>(null);
   const lastSavedRef = useRef<string>("");
-  const saveCheckpoint = useCallback(async (state: any) => {
+  const saveCheckpoint = useCallback(async (module: string, state: any) => {
     if (!session || isSyncing) return;
     const stateStr = JSON.stringify(state);
     if (stateStr === lastSavedRef.current) return;
@@ -41,37 +52,45 @@ export function useCheckpoint(session: SessionCheckpoint | null, onConflict: () 
     try {
       const res = await api<SessionCheckpoint>('/api/checkpoints/save', {
         method: 'POST',
-        body: JSON.stringify({ id: session.id, state, version: session.version })
+        body: JSON.stringify({ id: session.id, module, state, version: session.version })
       });
       lastSavedRef.current = stateStr;
       setHasConflict(false);
+      setResolution(null);
       return res;
     } catch (e: any) {
-      if (e.message === "Conflict") {
+      if (e.message.includes("409")) {
         setHasConflict(true);
-        onConflict();
+        const errData = JSON.parse(e.message.replace("409 ", ""));
+        setResolution(errData.resolution);
+        onConflict(errData);
       }
       return null;
     } finally {
       setIsSyncing(false);
     }
   }, [session, isSyncing, onConflict]);
-  return { saveCheckpoint, isSyncing, hasConflict, setHasConflict };
+  return { saveCheckpoint, isSyncing, hasConflict, setHasConflict, resolution };
 }
 export function useMemoryRetrieval(service: Service | null) {
-  const [results, setResults] = useState<MemoryRetrievalResult[]>([]);
+  const [results, setResults] = useState<MemoryResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const retrieve = useCallback(async (layer: MemoryLayer) => {
+  const retrieve = useCallback(async (layers: MemoryLayer[] = ['semantic', 'episodic']) => {
     if (!service) return;
     setLoading(true);
     try {
-      const res = await api<MemoryRetrievalResult[]>(`/api/memory/retrieve/${layer}`, {
+      const query: MemoryQuery = {
+        sessionId: 'main',
+        query: `${service.name} ${service.category}`,
+        policy: { layers, minScore: 0.6, maxResults: 5 }
+      };
+      const res = await api<MemoryResult[]>('/api/memory/retrieve', {
         method: 'POST',
-        body: JSON.stringify({ context: service.name + " " + service.category })
+        body: JSON.stringify(query)
       });
       setResults(res);
     } catch (e) {
-      toast.error(`MEM_ACCESS_DENIED: ${layer.toUpperCase()}`);
+      toast.error("HYBRID_MEM_ACCESS_DENIED");
     } finally {
       setLoading(false);
     }
@@ -80,15 +99,15 @@ export function useMemoryRetrieval(service: Service | null) {
 }
 export function useSemanticEmailEnhancement() {
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const enhance = useCallback(async (serviceId: string, protocol: TemplateType, context?: string) => {
+  const enhance = useCallback(async (serviceId: string, protocol: TemplateType, userContext?: string) => {
     setIsEnhancing(true);
     try {
-      const res = await api<{ content: string; score: number }>('/api/enhance-email', {
+      const res = await api<{ content: string; confidence: number }>('/api/emails/enhance', {
         method: 'POST',
-        body: JSON.stringify({ 
-          serviceId, 
-          templateId: protocol === 'gdpr' ? 't-gdpr' : 't-ccpa',
-          context 
+        body: JSON.stringify({
+          serviceId,
+          templateId: protocol === 't-gdpr' ? 't-gdpr' : 't-ccpa',
+          userContext
         })
       });
       return res;
