@@ -80,7 +80,8 @@ function runSetupCommands() {
     const commands = [
     "bun add lucide-react framer-motion clsx tailwind-merge date-fns zustand",
     "bun remove react-hotkeys-hook",
-    "bun add zod immer"
+    "bun add zod immer",
+    "bun add crypto-js"
 ];
     
     if (commands.length === 0) {
