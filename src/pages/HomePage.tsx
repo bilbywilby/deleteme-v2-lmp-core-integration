@@ -1,138 +1,152 @@
-// Home page of the app.
-// Currently a demo placeholder "please wait" screen.
-// Replace this file with your actual app UI. Do not delete it to use some other file as homepage. Simply replace the entire contents of this file.
-
-import { useEffect, useMemo, useState } from 'react'
-import { Sparkles } from 'lucide-react'
-
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { HAS_TEMPLATE_DEMO, TemplateDemo } from '@/components/TemplateDemo'
-import { Button } from '@/components/ui/button'
-import { Toaster, toast } from '@/components/ui/sonner'
-
-function formatDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Sparkles, Plus, Activity, Zap, Trash2, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { api } from '@/lib/api-client';
+import { Session } from '@shared/types';
+import { formatDistanceToNow } from 'date-fns';
+import { toast, Toaster } from 'sonner';
 export function HomePage() {
-  const [coins, setCoins] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
-  const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [elapsedMs, setElapsedMs] = useState(0)
-
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [target, setTarget] = useState('');
+  const navigate = useNavigate();
   useEffect(() => {
-    if (!isRunning || startedAt === null) return
-
-    const t = setInterval(() => {
-      setElapsedMs(Date.now() - startedAt)
-    }, 250)
-
-    return () => clearInterval(t)
-  }, [isRunning, startedAt])
-
-  const formatted = useMemo(() => formatDuration(elapsedMs), [elapsedMs])
-
-  const onPleaseWait = () => {
-    setCoins((c) => c + 1)
-
-    if (!isRunning) {
-      // Resume from the current elapsed time
-      setStartedAt(Date.now() - elapsedMs)
-      setIsRunning(true)
-      toast.success('Building your app…', {
-        description: "Hang tight — we're setting everything up.",
-      })
-      return
+    fetchSessions();
+  }, []);
+  const fetchSessions = async () => {
+    try {
+      const data = await api<Session[]>('/api/sessions');
+      setSessions(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-
-    setIsRunning(false)
-    toast.info('Still working…', {
-      description: 'You can come back in a moment.',
-    })
-  }
-
-  const onReset = () => {
-    setCoins(0)
-    setIsRunning(false)
-    setStartedAt(null)
-    setElapsedMs(0)
-    toast('Reset complete')
-  }
-
-  const onAddCoin = () => {
-    setCoins((c) => c + 1)
-    toast('Coin added')
-  }
-
+  };
+  const startProtocol = async () => {
+    if (!target) return toast.error('Enter a target service');
+    try {
+      const sess = await api<Session>('/api/sessions/start', {
+        method: 'POST',
+        body: JSON.stringify({ targetService: target })
+      });
+      toast.success('Protocol Initialized');
+      navigate(`/session/${sess.id}`);
+    } catch (err) {
+      toast.error('Failed to start protocol');
+    }
+  };
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 overflow-hidden relative">
-      <ThemeToggle />
-      <div className="absolute inset-0 bg-gradient-rainbow opacity-10 dark:opacity-20 pointer-events-none" />
-
-      <div className="text-center space-y-8 relative z-10 animate-fade-in w-full">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-primary floating">
-            <Sparkles className="w-8 h-8 text-white rotating" />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="py-8 md:py-10 lg:py-12 space-y-8">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-mono">
+              <Activity size={14} className="animate-pulse" />
+              SYSTEM STATUS: NOMINAL
+            </div>
+            <h1 className="text-4xl font-display font-bold">LMP Command Center</h1>
+            <p className="text-muted-foreground text-lg">Orchestrate deletion workflows with layered memory persistence.</p>
           </div>
-        </div>
-
-        <div className="space-y-3">
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-            Creating your <span className="text-gradient">app</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-            Your application would be ready soon.
-          </p>
-        </div>
-
-        {HAS_TEMPLATE_DEMO ? (
-          <div className="max-w-5xl mx-auto text-left">
-            <TemplateDemo />
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-center gap-4">
-              <Button
-                size="lg"
-                onClick={onPleaseWait}
-                className="btn-gradient px-8 py-4 text-lg font-semibold hover:-translate-y-0.5 transition-all duration-200"
-                aria-live="polite"
-              >
-                Please Wait
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-              <div>
-                Time elapsed:{' '}
-                <span className="font-medium tabular-nums text-foreground">{formatted}</span>
+          <ThemeToggle className="relative top-0 right-0" />
+        </header>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="md:col-span-2 bg-slate-950 border-slate-800 text-slate-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus size={20} className="text-blue-500" />
+                Initialize Protocol
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Start a new context-aware deletion session.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <input
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  placeholder="Service Name (e.g. Facebook, X, Google)"
+                  className="flex-1 bg-slate-900 border-slate-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                />
+                <Button onClick={startProtocol} className="bg-blue-600 hover:bg-blue-500 text-white font-mono">
+                  ACTIVATE
+                </Button>
               </div>
-              <div>
-                Coins:{' '}
-                <span className="font-medium tabular-nums text-foreground">{coins}</span>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-900/50 border-slate-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-mono flex items-center gap-2">
+                <Zap size={16} className="text-orange-500" />
+                Memory Usage
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-end">
+                <span className="text-xs text-muted-foreground">Parametric</span>
+                <span className="text-xs font-mono">1.2k Rules</span>
               </div>
+              <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                <div className="bg-orange-500 h-full w-[45%]" />
+              </div>
+              <div className="flex justify-between items-end">
+                <span className="text-xs text-muted-foreground">Semantic</span>
+                <span className="text-xs font-mono">84% Precision</span>
+              </div>
+              <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full w-[84%]" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Clock size={20} className="text-slate-500" />
+            Active Protocols
+          </h2>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-32 bg-slate-900 animate-pulse rounded-xl border border-slate-800" />)}
             </div>
-
-            <div className="flex justify-center gap-2">
-              <Button variant="outline" size="sm" onClick={onReset}>
-                Reset
-              </Button>
-              <Button variant="outline" size="sm" onClick={onAddCoin}>
-                Add Coin
-              </Button>
+          ) : sessions.length === 0 ? (
+            <div className="text-center py-20 border-2 border-dashed border-slate-800 rounded-3xl">
+              <p className="text-muted-foreground">No active protocols found. Start one above.</p>
             </div>
-          </>
-        )}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sessions.map((sess) => (
+                <button
+                  key={sess.id}
+                  onClick={() => navigate(`/session/${sess.id}`)}
+                  className="group relative text-left bg-slate-900/40 hover:bg-slate-900 border border-slate-800 p-5 rounded-xl transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/5 overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 size={14} className="text-red-500" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-lg text-slate-100">{sess.targetService}</h3>
+                    <p className="text-xs text-slate-500 uppercase tracking-widest font-mono">ID: {sess.id.slice(0, 8)}</p>
+                  </div>
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <Clock size={12} />
+                      {formatDistanceToNow(sess.lastActive)} ago
+                    </div>
+                    <div className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[10px] font-bold">
+                      {sess.status.toUpperCase()}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-
-      <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-        <p>Powered by Cloudflare</p>
-      </footer>
-
-      <Toaster richColors closeButton />
+      <Toaster richColors position="bottom-right" theme="dark" />
     </div>
-  )
+  );
 }
