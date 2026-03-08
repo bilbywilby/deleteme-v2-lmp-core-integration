@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, Zap, Search, Filter, Star, CheckCircle2, 
-  ExternalLink, Mail, Info, Terminal, Settings, AlertTriangle, 
-  BarChart3, Database, History, User, Save, Copy
+import {
+  Shield, Zap, Search, Filter, Star, CheckCircle2,
+  ExternalLink, Mail, Terminal, Settings, User, Copy, X
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -24,13 +23,19 @@ export function OblivionApp() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [emailModal, setEmailModal] = useState(false);
   const [emailDraft, setEmailDraft] = useState('');
+  const [configModal, setConfigModal] = useState(false);
+  const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
   useEffect(() => { fetchProtocolData(); }, []);
   const fetchProtocolData = async () => {
     try {
       const res = await api<any>('/api/oblivion/data');
       setData(res);
-    } catch (e) { toast.error("PROTOCOL UPLINK FAILED"); }
-    finally { setLoading(false); }
+      setEditingIdentity(res.identity);
+    } catch (e) { 
+      toast.error("PROTOCOL UPLINK FAILED"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
   const toggleStatus = async (id: string, field: 'done' | 'favorite') => {
     if (!data) return;
@@ -43,12 +48,28 @@ export function OblivionApp() {
       });
       setData(prev => prev ? ({
         ...prev,
-        progress: prev.progress.some(p => p.id === id) 
+        progress: prev.progress.some(p => p.id === id)
           ? prev.progress.map(p => p.id === id ? updated : p)
           : [...prev.progress, updated]
       }) : null);
       toast.success(`${field.toUpperCase()} SYNCED`);
-    } catch (e) { toast.error("SYNC FAILED"); }
+    } catch (e) { 
+      toast.error("SYNC FAILED"); 
+    }
+  };
+  const updateIdentity = async () => {
+    if (!editingIdentity) return;
+    try {
+      await api('/api/oblivion/identity', {
+        method: 'POST',
+        body: JSON.stringify(editingIdentity)
+      });
+      toast.success("IDENTITY PROFILE UPDATED");
+      setConfigModal(false);
+      fetchProtocolData();
+    } catch (e) {
+      toast.error("UPDATE FAILED");
+    }
   };
   const generateEmail = async (service: Service) => {
     setSelectedService(service);
@@ -59,7 +80,9 @@ export function OblivionApp() {
         body: JSON.stringify({ serviceId: service.id, type: 't-gdpr' })
       });
       setEmailDraft(res.content);
-    } catch (e) { toast.error("ENHANCEMENT FAILED"); }
+    } catch (e) { 
+      toast.error("ENHANCEMENT FAILED"); 
+    }
   };
   const filteredServices = useMemo(() => {
     if (!data) return [];
@@ -73,6 +96,10 @@ export function OblivionApp() {
       return matchesSearch && matchesCat && matchesDiff && matchesFav && matchesPending;
     });
   }, [data, search, filters]);
+  const brokers = useMemo(() => {
+    if (!data) return [];
+    return data.services.filter(s => s.category === 'Data Broker');
+  }, [data]);
   const categories = useMemo(() => ['All', ...new Set(data?.services.map(s => s.category) || [])], [data]);
   if (loading || !data) return (
     <div className="h-screen flex items-center justify-center bg-background cyber-grid">
@@ -142,8 +169,8 @@ export function OblivionApp() {
                   <label className="text-[10px] text-muted-foreground uppercase font-bold">Difficulty</label>
                   <div className="flex gap-1">
                     {['All', 'easy', 'medium', 'hard'].map(d => (
-                      <button
-                        key={d}
+                      <button 
+                        key={d} 
                         onClick={() => setFilters(f => ({ ...f, difficulty: d }))}
                         className={`flex-1 text-[8px] py-1 rounded border transition-colors uppercase font-bold ${filters.difficulty === d ? 'bg-primary text-background border-primary' : 'bg-slate-900 border-primary/20'}`}
                       >
@@ -151,20 +178,6 @@ export function OblivionApp() {
                       </button>
                     ))}
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setFilters(f => ({ ...f, favorites: !f.favorites }))}
-                    className={`flex-1 py-1.5 rounded flex items-center justify-center gap-1 text-[10px] uppercase font-bold transition-all ${filters.favorites ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50' : 'bg-slate-900 text-muted-foreground border border-primary/10'}`}
-                  >
-                    <Star size={10} /> Saved
-                  </button>
-                  <button 
-                    onClick={() => setFilters(f => ({ ...f, pending: !f.pending }))}
-                    className={`flex-1 py-1.5 rounded flex items-center justify-center gap-1 text-[10px] uppercase font-bold transition-all ${filters.pending ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-slate-900 text-muted-foreground border border-primary/10'}`}
-                  >
-                    <CheckCircle2 size={10} /> Pending
-                  </button>
                 </div>
               </div>
             </div>
@@ -179,13 +192,14 @@ export function OblivionApp() {
                 </div>
                 <div className="flex justify-between border-b border-primary/10 pb-1">
                   <span className="text-muted-foreground">EMAIL</span>
-                  <span>{data.identity.email}</span>
+                  <span className="truncate max-w-[120px]">{data.identity.email}</span>
                 </div>
-                <div className="flex justify-between border-b border-primary/10 pb-1">
-                  <span className="text-muted-foreground">LOCATION</span>
-                  <span className="truncate max-w-[120px]">{data.identity.address}</span>
-                </div>
-                <Button variant="outline" size="sm" className="w-full text-[10px] h-7 border-primary/20 hover:bg-primary/10">
+                <Button 
+                  onClick={() => setConfigModal(true)}
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-[10px] h-7 border-primary/20 hover:bg-primary/10"
+                >
                   <Settings size={12} className="mr-1" /> CONFIGURE LMP
                 </Button>
               </div>
@@ -204,74 +218,28 @@ export function OblivionApp() {
                     {filteredServices.map(service => {
                       const progress = data.progress.find(p => p.id === service.id);
                       return (
-                        <motion.div
-                          layout
-                          key={service.id}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                        >
+                        <motion.div layout key={service.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
                           <Card className={`glass-cyber overflow-hidden group transition-all duration-300 ${progress?.done ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-primary/50 hover:shadow-primary/5'}`}>
                             <CardContent className="p-4 space-y-4">
                               <div className="flex justify-between items-start">
                                 <div className="space-y-1">
                                   <h3 className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors">{service.name}</h3>
-                                  <Badge variant="outline" className="text-[8px] h-4 border-primary/30 uppercase font-mono">
-                                    {service.category}
-                                  </Badge>
+                                  <Badge variant="outline" className="text-[8px] h-4 border-primary/30 uppercase font-mono">{service.category}</Badge>
                                 </div>
                                 <div className="flex gap-1">
-                                  <button 
-                                    onClick={() => toggleStatus(service.id, 'favorite')}
-                                    className={`p-1.5 rounded-md transition-all ${progress?.favorite ? 'text-yellow-500 bg-yellow-500/10' : 'text-slate-600 hover:text-slate-400'}`}
-                                  >
+                                  <button onClick={() => toggleStatus(service.id, 'favorite')} className={`p-1.5 rounded-md transition-all ${progress?.favorite ? 'text-yellow-500 bg-yellow-500/10' : 'text-slate-600 hover:text-slate-400'}`}>
                                     <Star size={16} fill={progress?.favorite ? "currentColor" : "none"} />
                                   </button>
-                                  <button 
-                                    onClick={() => toggleStatus(service.id, 'done')}
-                                    className={`p-1.5 rounded-md transition-all ${progress?.done ? 'text-primary bg-primary/10' : 'text-slate-600 hover:text-slate-400'}`}
-                                  >
+                                  <button onClick={() => toggleStatus(service.id, 'done')} className={`p-1.5 rounded-md transition-all ${progress?.done ? 'text-primary bg-primary/10' : 'text-slate-600 hover:text-slate-400'}`}>
                                     <CheckCircle2 size={16} />
                                   </button>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                                <div className="flex flex-col">
-                                  <span className="text-muted-foreground uppercase">Difficulty</span>
-                                  <span className={`font-bold uppercase ${service.difficulty === 'easy' ? 'text-emerald-500' : service.difficulty === 'medium' ? 'text-yellow-500' : 'text-red-500'}`}>
-                                    {service.difficulty}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-muted-foreground uppercase">Method</span>
-                                  <span className="text-slate-300 uppercase truncate">{service.contactMethod.replace('-', ' ')}</span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-muted-foreground uppercase">Confidence</span>
-                                  <span className="text-slate-300 uppercase">{service.confidence}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-muted-foreground uppercase">Wait Time</span>
-                                  <span className="text-slate-300 uppercase">{service.waitDays} Days</span>
-                                </div>
-                              </div>
-                              {(service.requiresVerification || service.requiresDocs) && (
-                                <div className="flex gap-2">
-                                  {service.requiresVerification && <Badge className="bg-red-500/10 text-red-500 border-red-500/30 text-[8px] h-4">VERIF REQUIRED</Badge>}
-                                  {service.requiresDocs && <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/30 text-[8px] h-4">DOCS NEEDED</Badge>}
-                                </div>
-                              )}
                               <div className="flex gap-2 pt-2">
-                                <Button 
-                                  onClick={() => window.open(service.url, '_blank')}
-                                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-[10px] h-8 border border-primary/20 font-bold"
-                                >
+                                <Button onClick={() => window.open(service.url, '_blank')} className="flex-1 bg-slate-900 hover:bg-slate-800 text-[10px] h-8 border border-primary/20 font-bold">
                                   <ExternalLink size={12} className="mr-2" /> PORTAL
                                 </Button>
-                                <Button 
-                                  onClick={() => generateEmail(service)}
-                                  className="flex-1 bg-primary text-background hover:bg-primary/90 text-[10px] h-8 font-bold"
-                                >
+                                <Button onClick={() => generateEmail(service)} className="flex-1 bg-primary text-background hover:bg-primary/90 text-[10px] h-8 font-bold">
                                   <Mail size={12} className="mr-2" /> DRAFT
                                 </Button>
                               </div>
@@ -284,28 +252,36 @@ export function OblivionApp() {
                 </div>
               </TabsContent>
               <TabsContent value="logs" className="pt-4">
-                <div className="glass-cyber rounded-lg overflow-hidden border-primary/20">
-                  <div className="p-4 border-b border-primary/10 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                      <Terminal size={14} /> Protocol Event History
-                    </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">{data.logs.length} ENTRIES</span>
-                  </div>
-                  <div className="divide-y divide-primary/5 max-h-[600px] overflow-y-auto scrollbar-hide font-mono text-xs">
-                    {data.logs.map((log, i) => (
+                <div className="glass-cyber rounded-lg overflow-hidden">
+                  <div className="divide-y divide-primary/5 max-h-[600px] overflow-y-auto font-mono text-xs">
+                    {data.logs.map((log) => (
                       <div key={log.id} className="p-4 hover:bg-primary/5 transition-colors flex gap-4">
                         <span className="text-muted-foreground shrink-0">{formatDistanceToNow(log.timestamp)} ago</span>
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`text-[8px] h-4 px-1 ${log.type === 'identity_update' ? 'text-yellow-500 border-yellow-500/30' : 'text-primary border-primary/30'}`}>
-                              {log.type.toUpperCase()}
-                            </Badge>
-                          </div>
-                          <p className="text-slate-300 leading-relaxed">{log.content}</p>
+                          <Badge variant="outline" className="text-[8px] h-4 px-1">{log.type.toUpperCase()}</Badge>
+                          <p className="text-slate-300">{log.content}</p>
                         </div>
                       </div>
                     ))}
                   </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="brokers" className="pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {brokers.map(broker => {
+                    const progress = data.progress.find(p => p.id === broker.id);
+                    return (
+                      <Card key={broker.id} className="glass-cyber p-4 hover:border-red-500/30 transition-all">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-bold text-red-400">{broker.name}</h3>
+                          {progress?.done ? <Badge className="bg-emerald-500/20 text-emerald-500">EXCISED</Badge> : <Badge className="bg-red-500/20 text-red-500">THREAT</Badge>}
+                        </div>
+                        <Button variant="outline" className="w-full text-xs border-primary/10 hover:border-primary/40" onClick={() => window.open(broker.url, '_blank')}>
+                          OPT-OUT FORM
+                        </Button>
+                      </Card>
+                    );
+                  })}
                 </div>
               </TabsContent>
             </Tabs>
@@ -315,41 +291,49 @@ export function OblivionApp() {
       <AnimatePresence>
         {emailModal && selectedService && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-background/90 backdrop-blur-md"
-              onClick={() => setEmailModal(false)}
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl glass-cyber p-6 space-y-4"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/90 backdrop-blur-md" onClick={() => setEmailModal(false)} />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-2xl glass-cyber p-6 space-y-4">
               <div className="flex justify-between items-center border-b border-primary/10 pb-4">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-primary uppercase">Draft: {selectedService.name}</h2>
-                  <p className="text-[10px] text-muted-foreground font-mono">Template: GDPR Article 17 (Identity Auto-Injected)</p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setEmailModal(false)}>✕</Button>
+                <h2 className="text-xl font-bold text-primary uppercase">Draft: {selectedService.name}</h2>
+                <Button variant="ghost" size="icon" onClick={() => setEmailModal(false)}><X /></Button>
               </div>
-              <textarea 
-                className="w-full h-80 bg-slate-900 border border-primary/20 rounded-lg p-4 font-mono text-xs leading-relaxed text-slate-300 focus:ring-1 focus:ring-primary outline-none"
-                value={emailDraft}
-                onChange={(e) => setEmailDraft(e.target.value)}
-              />
+              <textarea className="w-full h-80 bg-slate-900 border border-primary/20 rounded-lg p-4 font-mono text-xs text-slate-300 focus:ring-1 focus:ring-primary outline-none" value={emailDraft} onChange={(e) => setEmailDraft(e.target.value)} />
               <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" className="border-primary/20 text-xs font-bold" onClick={async () => {
+                <Button variant="outline" onClick={async () => {
                   await navigator.clipboard.writeText(emailDraft);
-                  toast.success("CONTENT COPIED TO CLIPBOARD");
-                  await api('/api/oblivion/log', { method: 'POST', body: JSON.stringify({ type: 'draft_generated', content: `Copied deletion request draft for ${selectedService.name}` }) });
+                  toast.success("CONTENT COPIED");
+                  await api('/api/oblivion/log', { method: 'POST', body: JSON.stringify({ type: 'draft_generated', content: `Copied draft for ${selectedService.name}` }) });
                   fetchProtocolData();
-                }}>
-                  <Copy size={14} className="mr-2" /> COPY
+                }}><Copy size={14} className="mr-2" /> COPY</Button>
+                <Button className="bg-primary text-background" onClick={() => window.open(`mailto:?body=${encodeURIComponent(emailDraft)}`)}>
+                  <Mail size={14} className="mr-2" /> OPEN MAIL
                 </Button>
-                <Button className="bg-primary text-background font-bold text-xs">
-                  <ExternalLink size={14} className="mr-2" /> OPEN MAIL CLIENT
-                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {configModal && editingIdentity && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/90 backdrop-blur-md" onClick={() => setConfigModal(false)} />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md glass-cyber p-6 space-y-4">
+              <h2 className="text-xl font-bold text-primary uppercase">Configure Identity</h2>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground uppercase">Full Name</label>
+                  <Input value={editingIdentity.fullName} className="bg-slate-900 border-primary/20" onChange={(e) => setEditingIdentity({...editingIdentity, fullName: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground uppercase">Email Address</label>
+                  <Input value={editingIdentity.email} className="bg-slate-900 border-primary/20" onChange={(e) => setEditingIdentity({...editingIdentity, email: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground uppercase">Physical Address</label>
+                  <Input value={editingIdentity.address} className="bg-slate-900 border-primary/20" onChange={(e) => setEditingIdentity({...editingIdentity, address: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="ghost" onClick={() => setConfigModal(false)}>CANCEL</Button>
+                <Button className="bg-primary text-background" onClick={updateIdentity}>SAVE CHANGES</Button>
               </div>
             </motion.div>
           </div>

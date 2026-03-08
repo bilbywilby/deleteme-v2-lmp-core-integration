@@ -7,7 +7,7 @@ import {
   EventLogEntity,
   GlobalMemoryEntity 
 } from "./entities";
-import { ok, bad, isStr } from './core-utils';
+import { ok, bad, isStr, Index } from './core-utils';
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // Unified data fetch for Dashboard
   app.get('/api/oblivion/data', async (c) => {
@@ -35,8 +35,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       notes: body.notes ?? s.notes,
       updatedAt: Date.now()
     }));
-    // Update index if it's new
-    const idx = new (require("./core-utils").Index)(c.env, ServiceProgressEntity.indexName);
+    // Update index using imported Index class
+    const idx = new Index<string>(c.env, ServiceProgressEntity.indexName);
     await idx.add(body.id);
     return ok(c, state);
   });
