@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Syne:wght@400..800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,8 +15,9 @@
     --radius: 0.25rem;
   }
   body {
-    @apply bg-background text-foreground font-mono selection:bg-primary/30;
-    background-image: 
+    @apply bg-background text-foreground selection:bg-primary/30;
+    font-family: 'Space Mono', monospace;
+    background-image:
       radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 50%),
       linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
       linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
@@ -23,17 +25,35 @@
   }
 }
 @layer components {
+  .font-display { font-family: 'Syne', sans-serif; }
   .glass-cyber {
     @apply bg-slate-950/80 backdrop-blur-xl border border-primary/20 shadow-[0_0_20px_rgba(0,255,255,0.1)];
   }
   .text-neon {
     @apply text-primary drop-shadow-[0_0_8px_rgba(0,255,255,0.8)];
   }
+  .grain {
+    position: relative;
+  }
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+    opacity: 0.05;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .card-glow-emerald { @apply shadow-[0_0_15px_rgba(16,185,129,0.15)] border-emerald-500/20; }
+  .card-glow-amber { @apply shadow-[0_0_15px_rgba(245,158,11,0.15)] border-amber-500/20; }
+  .card-glow-rose { @apply shadow-[0_0_15px_rgba(244,63,94,0.15)] border-rose-500/20; }
   .cyber-grid {
     background-size: 40px 40px;
-    background-image: 
-      linear-gradient(to right, rgba(0, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+    background-image:
+      linear-gradient(to right, rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
   }
 }
 @keyframes scanline {
@@ -44,8 +64,18 @@
   content: "";
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100px;
-  background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.1), transparent);
+  background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.08), transparent);
   animation: scanline 8s linear infinite;
   pointer-events: none;
   z-index: 50;
+}
+@keyframes glitch-entry {
+  0% { opacity: 0; transform: scale(0.95) skewX(-2deg); }
+  20% { opacity: 0.8; transform: scale(1.02) skewX(2deg); }
+  40% { opacity: 0.5; transform: scale(0.98); }
+  60% { opacity: 1; transform: scale(1.01) skewX(-1deg); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.glitch-entry {
+  animation: glitch-entry 0.5s ease-out forwards;
 }

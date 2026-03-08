@@ -25,6 +25,10 @@ export interface Service {
   requiresDocs: boolean;
   notes?: string;
 }
+export interface CustomService extends Service {
+  isCustom: boolean;
+  ownerId: string;
+}
 export interface Broker extends Service {
   optOutUrl: string;
 }
@@ -38,7 +42,7 @@ export interface ServiceProgress {
 export interface DeletionEvent {
   id: string;
   sessionId: string;
-  type: 'initialization' | 'draft_generated' | 'email_sent' | 'manual_update' | 'archived' | 'broker_opt_out' | 'identity_update';
+  type: 'initialization' | 'draft_generated' | 'email_sent' | 'manual_update' | 'archived' | 'broker_opt_out' | 'identity_update' | 'custom_service_created';
   content: string;
   timestamp: number;
   metadata?: Record<string, any>;
@@ -49,6 +53,8 @@ export interface Identity {
   address: string;
   phone: string;
   dob: string;
+  userName?: string;
+  apiKey?: string;
 }
 export interface Session {
   id: string;
