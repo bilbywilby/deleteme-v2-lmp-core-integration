@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Zap, Search, Filter, Star, CheckCircle2,
-  ExternalLink, Mail, Terminal, Settings, User, Copy, X, Dog, Plus, ChevronRight, AlertTriangle, Cpu, Globe, RefreshCcw, Clock
+  ExternalLink, Mail, Terminal, Settings, User, Copy, X, Dog, Plus, ChevronRight, AlertTriangle, Cpu, Globe, RefreshCcw, Clock, Box
 } from 'lucide-react';
 import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcuts';
 import { api } from '@/lib/api-client';
@@ -17,14 +17,6 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { toast, Toaster } from 'sonner';
 import { Service, ServiceProgress, Identity, DeletionEvent, CustomService, TemplateType } from '@shared/types';
 import { useSession, useCheckpoint, useSemanticEmailEnhancement, useMemoryRetrieval } from '@/hooks/use-lmp';
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-};
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 }
-};
 function HuskyLogo() {
   return (
     <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="relative flex items-center justify-center">
@@ -34,6 +26,14 @@ function HuskyLogo() {
     </motion.div>
   );
 }
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 }
+};
 export function OblivionApp() {
   const { session, loading: sessionLoading } = useSession();
   const [data, setData] = useState<{ services: Service[]; progress: ServiceProgress[]; identity: Identity; logs: DeletionEvent[] } | null>(null);
@@ -48,9 +48,10 @@ export function OblivionApp() {
   const [activeProtocol, setActiveProtocol] = useState<TemplateType>('gdpr');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
+  const [lastCommand, setLastCommand] = useState<string | null>(null);
   const { enhance, isEnhancing } = useSemanticEmailEnhancement();
   const { results: memoryResults, retrieve: retrieveMemory, loading: memLoading } = useMemoryRetrieval(selectedService);
-  const { saveCheckpoint, isSyncing, hasConflict, setHasConflict, resolution } = useCheckpoint(session, (conflictData) => {
+  const { saveCheckpoint, isSyncing, hasConflict, setHasConflict, resolution } = useCheckpoint(session, () => {
     toast.error("PROTOCOL COLLISION DETECTED");
   });
   const fetchProtocolData = useCallback(async () => {
@@ -58,10 +59,10 @@ export function OblivionApp() {
       const res = await api<any>('/api/oblivion/data');
       setData(res);
       setEditingIdentity(res.identity);
-    } catch (e) { 
-      toast.error("PROTOCOL UPLINK FAILED"); 
-    } finally { 
-      setAppLoading(false); 
+    } catch (e) {
+      toast.error("PROTOCOL UPLINK FAILED");
+    } finally {
+      setAppLoading(false);
     }
   }, []);
   useEffect(() => { fetchProtocolData(); }, [fetchProtocolData]);
@@ -71,7 +72,39 @@ export function OblivionApp() {
       return () => clearTimeout(timer);
     }
   }, [data, saveCheckpoint, appLoading]);
-  useKeyboardShortcut('Escape', () => { setEmailModal(false); setSettingsOpen(false); });
+  const closeOverlays = useCallback(() => {
+    setEmailModal(false);
+    setSettingsOpen(false);
+  }, []);
+  const generateEmailDraft = useCallback(async (service: Service, protocol: TemplateType = 'gdpr') => {
+    setSelectedService(service);
+    setActiveProtocol(protocol);
+    setEmailModal(true);
+    setEmailDraft('');
+    const res = await enhance(service.id, protocol, service.name);
+    if (res) {
+      setEmailDraft(res.content);
+      setConfidence(res.confidence);
+      retrieveMemory(['semantic', 'episodic', 'parametric']);
+    }
+  }, [enhance, retrieveMemory]);
+  // Tactical Shortcuts
+  useKeyboardShortcut('Escape', () => {
+    setLastCommand('ESC');
+    closeOverlays();
+  });
+  useKeyboardShortcut('e', () => {
+    if (selectedService && !emailModal && !settingsOpen) {
+      setLastCommand('ENHANCE');
+      generateEmailDraft(selectedService, activeProtocol);
+    }
+  });
+  useEffect(() => {
+    if (lastCommand) {
+      const timer = setTimeout(() => setLastCommand(null), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastCommand]);
   const toggleStatus = async (id: string, field: 'done' | 'favorite') => {
     if (!data) return;
     const current = data.progress.find(p => p.id === id) || { id, done: false, favorite: false, notes: '' };
@@ -83,20 +116,8 @@ export function OblivionApp() {
       });
       setData(prev => prev ? ({ ...prev, progress: prev.progress.some(p => p.id === id) ? prev.progress.map(p => p.id === id ? updated : p) : [...prev.progress, updated] }) : null);
       toast.success(`${field.toUpperCase()} SYNCED`);
-    } catch (e) { 
-      toast.error("DATA COLLISION"); 
-    }
-  };
-  const generateEmailDraft = async (service: Service, protocol: TemplateType = 'gdpr') => {
-    setSelectedService(service);
-    setActiveProtocol(protocol);
-    setEmailModal(true);
-    setEmailDraft('');
-    const res = await enhance(service.id, protocol, service.name);
-    if (res) {
-      setEmailDraft(res.content);
-      setConfidence(res.confidence);
-      retrieveMemory(['semantic', 'episodic', 'parametric']);
+    } catch (e) {
+      toast.error("DATA COLLISION");
     }
   };
   const { standardMatrix } = useMemo(() => {
@@ -114,10 +135,10 @@ export function OblivionApp() {
     <div className="h-screen flex flex-col items-center justify-center bg-background cyber-grid scanline">
       <HuskyLogo />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 text-center space-y-4">
-        <h2 className="text-primary font-display font-bold tracking-[0.4em] uppercase text-xl">NEURAL LINKING...</h2>
+        <h2 className="text-primary font-display font-bold tracking-[0.4em] uppercase text-xl text-neon">INITIALIZING_V5</h2>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground uppercase font-mono">
-           <Globe size={12} className="animate-spin" />
-           <span>Client Handshake Synchronized</span>
+           <Globe size={12} className="animate-spin text-primary" />
+           <span>NEURAL_HANDSHAKE_ACTIVE</span>
         </div>
       </motion.div>
     </div>
@@ -125,11 +146,18 @@ export function OblivionApp() {
   const progressPercent = (data.progress.filter(p => p.done).length / data.services.length) * 100;
   return (
     <div className="min-h-screen bg-background text-foreground cyber-grid scanline pb-24 grain">
+      <AnimatePresence>
+        {lastCommand && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 glass-cyber border-primary text-primary font-mono text-[10px] uppercase tracking-widest pointer-events-none">
+            CMD_EXECUTED: {lastCommand}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {hasConflict && (
         <div className="bg-amber-500 text-black py-2 px-4 flex justify-between items-center font-mono text-xs font-bold sticky top-0 z-[110]">
-          <div className="flex items-center gap-2"><AlertTriangle size={14} /> {resolution || "SESSION VERSION MISMATCH DETECTED"}</div>
+          <div className="flex items-center gap-2"><AlertTriangle size={14} /> {resolution || "VERSION_CONFLICT"}</div>
           <div className="flex gap-4">
-            <button onClick={() => window.location.reload()} className="underline">RELOAD MATRIX</button>
+            <button onClick={() => window.location.reload()} className="underline">RE-SYNC</button>
             <button onClick={() => setHasConflict(false)} className="underline">IGNORE</button>
           </div>
         </div>
@@ -156,7 +184,7 @@ export function OblivionApp() {
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setSettingsOpen(true)} variant="outline" className="h-auto py-2 px-6 border-primary/30 rounded-none font-bold text-[10px] uppercase"><User size={14} className="mr-2" /> Identity</Button>
+              <Button onClick={() => setSettingsOpen(true)} variant="outline" className="h-auto py-2 px-6 border-primary/30 rounded-none font-bold text-[10px] uppercase"><User size={14} className="mr-2" /> Operator</Button>
               <ThemeToggle className="static" />
             </div>
           </div>
@@ -170,15 +198,20 @@ export function OblivionApp() {
             </div>
             {selectedService && (
               <div className="glass-cyber p-5 space-y-4">
-                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest border-b border-primary/10 pb-3"><Zap size={14} /> Hybrid Memory</div>
+                <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest border-b border-primary/10 pb-3"><Zap size={14} /> Hybrid Memory (1536d)</div>
                 <div className="space-y-3">
-                  {memLoading ? <div className="text-[9px] animate-pulse">ANALYZING LMP LAYERS...</div> : memoryResults.map((res, i) => (
+                  {memLoading ? <div className="text-[9px] animate-pulse text-primary font-mono">ANALYZING LMP LAYERS...</div> : memoryResults.map((res, i) => (
                     <div key={i} className="p-2 bg-primary/5 border border-primary/10 text-[9px] font-mono leading-tight">
                       <div className="text-primary/40 mb-1 flex justify-between uppercase">
-                        <span>{res.layer} @ {res.latency}ms</span>
-                        <span>{(res.score * 100).toFixed(0)}%</span>
+                        <span>{res.layer} ::: {res.latency}ms</span>
+                        <span>{res.score.toFixed(3)}%</span>
                       </div>
                       <p className="line-clamp-2 italic opacity-60">"{res.content}"</p>
+                      {res.metadata?.clusterId !== undefined && (
+                        <div className="mt-1 flex items-center gap-1 text-emerald-500/50 uppercase text-[8px]">
+                          <Box size={8} /> Cluster_{res.metadata.clusterId}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -195,14 +228,21 @@ export function OblivionApp() {
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {standardMatrix.map(service => {
                     const progress = data.progress.find(p => p.id === service.id);
+                    const isSelected = selectedService?.id === service.id;
                     return (
                       <motion.div key={service.id} variants={itemVariants} layout>
-                        <Card className={`glass-cyber h-full transition-all card-indicator-${service.difficulty} ${progress?.done ? 'opacity-30' : 'hover:border-primary/50'}`}>
+                        <Card 
+                          onClick={() => setSelectedService(service)}
+                          className={`glass-cyber h-full transition-all card-indicator-${service.difficulty} cursor-pointer ${progress?.done ? 'opacity-30' : 'hover:border-primary/50'} ${isSelected ? 'border-primary/60 ring-1 ring-primary/20' : ''}`}
+                        >
                           <CardContent className="p-5 space-y-4">
-                            <h3 className="font-bold text-base font-display uppercase">{service.name}</h3>
+                            <div className="flex justify-between items-start">
+                              <h3 className="font-bold text-base font-display uppercase">{service.name}</h3>
+                              {isSelected && <Badge className="bg-primary text-background text-[8px] font-bold h-4">[SELECTED]</Badge>}
+                            </div>
                             <div className="flex gap-2 pt-4">
-                              <Button variant="outline" onClick={() => window.open(service.url, '_blank')} className="flex-1 text-[9px] h-8 border-primary/10 font-bold font-mono rounded-none">PORTAL</Button>
-                              <Button onClick={() => generateEmailDraft(service)} className="flex-1 bg-primary text-background text-[9px] h-8 font-bold font-mono rounded-none">ENHANCE</Button>
+                              <Button variant="outline" onClick={(e) => { e.stopPropagation(); window.open(service.url, '_blank'); }} className="flex-1 text-[9px] h-8 border-primary/10 font-bold font-mono rounded-none uppercase">Portal</Button>
+                              <Button onClick={(e) => { e.stopPropagation(); generateEmailDraft(service); }} className="flex-1 bg-primary text-background text-[9px] h-8 font-bold font-mono rounded-none uppercase">Enhance [E]</Button>
                             </div>
                           </CardContent>
                         </Card>
@@ -211,19 +251,25 @@ export function OblivionApp() {
                   })}
                 </motion.div>
               </TabsContent>
+              <TabsContent value="logs">
+                 {/* EventTimeline usually lives here but simplified for parity */}
+                 <div className="p-12 text-center text-primary/20 font-mono text-xs border border-primary/10 bg-black/40">
+                   NEURAL_STREAM_ENCRYPTED ::: CLUSTER_ANALYSIS_READY
+                 </div>
+              </TabsContent>
             </Tabs>
           </main>
         </div>
       </div>
       <AnimatePresence>
         {emailModal && selectedService && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/95 backdrop-blur-xl" onClick={() => setEmailModal(false)} />
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-background/95 backdrop-blur-xl" onClick={closeOverlays} />
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-2xl glass-cyber p-0 overflow-hidden">
               <div className="bg-primary text-background p-4 flex justify-between items-center">
                 <h2 className="text-lg font-bold font-display uppercase"><Terminal size={18} className="inline mr-2" /> Protocol_Draft</h2>
                 <div className="text-[10px] font-mono bg-black/20 px-2 py-1 flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Confidence: {(confidence * 100).toFixed(0)}%
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Precision: {confidence.toFixed(3)}
                 </div>
               </div>
               <div className="p-6 space-y-5">
@@ -237,8 +283,8 @@ export function OblivionApp() {
                   )}
                 </div>
                 <div className="flex justify-end gap-3">
-                  <Button variant="outline" className="font-bold text-[10px] rounded-none uppercase" onClick={() => setEmailModal(false)}>Close</Button>
-                  <Button className="bg-primary text-background font-bold text-[10px] rounded-none uppercase" onClick={() => { navigator.clipboard.writeText(emailDraft); toast.success("BUFFER COPIED"); }}>Copy Buffer</Button>
+                  <Button variant="outline" className="font-bold text-[10px] rounded-none uppercase" onClick={closeOverlays}>Close [ESC]</Button>
+                  <Button className="bg-primary text-background font-bold text-[10px] rounded-none uppercase" onClick={() => { navigator.clipboard.writeText(emailDraft); toast.success("BUFFER_COPIED"); }}>Copy Buffer</Button>
                 </div>
               </div>
             </motion.div>
@@ -247,7 +293,7 @@ export function OblivionApp() {
       </AnimatePresence>
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent className="bg-slate-950 border-l border-primary/20 w-full sm:max-w-md text-foreground glass-cyber">
-          <SheetHeader className="mb-8"><h2 className="text-2xl font-display font-bold text-primary uppercase">Identity_Sync</h2></SheetHeader>
+          <SheetHeader className="mb-8"><h2 className="text-2xl font-display font-bold text-primary uppercase text-neon">Identity_Sync</h2></SheetHeader>
           {editingIdentity && (
             <div className="space-y-8">
                <div className="space-y-4">
@@ -264,14 +310,14 @@ export function OblivionApp() {
                     <Input value={editingIdentity.fullName ?? ""} className="bg-black/40 border-primary/10 font-mono text-xs rounded-none" onChange={(e) => setEditingIdentity({...editingIdentity, fullName: e.target.value})} />
                   </div>
                </div>
-               <Button 
-                className="w-full bg-primary text-background font-bold text-[10px] h-12 rounded-none uppercase" 
-                onClick={async () => { 
+               <Button
+                className="w-full bg-primary text-background font-bold text-[10px] h-12 rounded-none uppercase hover:bg-primary/90 transition-colors"
+                onClick={async () => {
                   try {
-                    await api('/api/oblivion/identity', { method: 'POST', body: JSON.stringify(editingIdentity) }); 
-                    toast.success("IDENTITY SYNCHRONIZED"); 
-                    setSettingsOpen(false); 
-                    fetchProtocolData(); 
+                    await api('/api/oblivion/identity', { method: 'POST', body: JSON.stringify(editingIdentity) });
+                    toast.success("IDENTITY SYNCHRONIZED");
+                    setSettingsOpen(false);
+                    fetchProtocolData();
                   } catch (e) {
                     toast.error("IDENTITY SYNC FAILED");
                   }

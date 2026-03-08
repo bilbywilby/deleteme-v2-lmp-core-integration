@@ -15,6 +15,7 @@ export class MemoryCoordinator {
     const startTime = Date.now();
     const results: MemoryResult[] = [];
     const layers = query.policy.layers;
+    // Use batch processing for efficiency where possible
     const layerTasks = layers.map(async (layer) => {
       const layerStart = Date.now();
       let layerItems: any[] = [];
@@ -28,10 +29,10 @@ export class MemoryCoordinator {
         layerItems = log.events;
         layerContentGetter = (e) => e.content;
       } else if (layer === 'parametric') {
-        // Mock system rules layer
         layerItems = [
-          { content: "Always verify identity before data erasure.", type: "rule" },
-          { content: "GDPR Article 17 requires 30-day compliance.", type: "rule" }
+          { content: "Verify identity context before execution.", type: "rule" },
+          { content: "GDPR Article 17 requires 30-day compliance.", type: "rule" },
+          { content: "Maintain idempotency for high-latency protocols.", type: "rule" }
         ];
         layerContentGetter = (r) => r.content;
       }
@@ -45,15 +46,35 @@ export class MemoryCoordinator {
       return matches.slice(0, query.policy.maxResults).map(m => ({
         content: layerContentGetter(m.item),
         layer,
-        score: m.score,
+        score: parseFloat(m.score.toFixed(4)),
         latency: layerLatency,
-        metadata: m.item
+        metadata: { ...m.item, clusterId: Math.floor(m.score * 10) }
       }));
     });
     const nestedResults = await Promise.all(layerTasks);
     nestedResults.forEach(batch => results.push(...batch));
-    // Hybrid ranking: Sort by score descending
     return results.sort((a, b) => b.score - a.score);
+  }
+  /**
+   * Analyzes episodic logs for recurring patterns using clustering.
+   */
+  static async analyzeTrends(env: Env) {
+    const logs = await new EventLogEntity(env, 'main').getState();
+    if (logs.events.length < 5) return { trends: [], count: logs.events.length };
+    const { clusters } = await SemanticEngine.clusterPatterns(
+      logs.events,
+      (e) => e.content,
+      3
+    );
+    return {
+      trends: clusters.map((c, i) => ({
+        id: `trend-${i}`,
+        size: c.items.length,
+        summary: c.items[0]?.content || "Pattern detected",
+        sampleIds: c.items.slice(0, 3).map(it => it.id)
+      })),
+      count: logs.events.length
+    };
   }
   static async getSummary(env: Env, sessionId: string) {
     const checkpoint = await new SessionCheckpointEntity(env, sessionId).getState();

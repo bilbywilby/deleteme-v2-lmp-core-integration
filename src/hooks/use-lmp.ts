@@ -65,7 +65,7 @@ export function useCheckpoint(session: SessionCheckpoint | null, onConflict: (re
           const errData = JSON.parse(e.message.replace("409 ", ""));
           setResolution(errData.resolution);
           onConflict(errData);
-        } catch (parseError) {
+        } catch {
           setResolution("Concurrent update collision");
         }
       }
@@ -123,4 +123,20 @@ export function useSemanticEmailEnhancement() {
     }
   }, []);
   return { enhance, isEnhancing };
+}
+export function useSemanticClusters() {
+  const [clusters, setClusters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const analyze = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api<any>('/api/memory/analyze-trends', { method: 'POST' });
+      setClusters(res.trends || []);
+    } catch (e) {
+      console.error("Cluster Analysis Failed", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  return { clusters, analyze, loading };
 }
