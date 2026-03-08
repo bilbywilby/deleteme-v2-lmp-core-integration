@@ -15,9 +15,6 @@ interface UIContextType {
   resetFilters: () => void;
 }
 const UIContext = createContext<UIContextType | undefined>(undefined);
-/**
- * UIProvider: Central state for the Oblivion protocol matrix.
- */
 export function UIProvider({ children }: { children: React.ReactNode }) {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('services');
@@ -47,15 +44,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   }), [search, filters, activeTab, resetFilters]);
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }
-/**
- * Hook to consume the UI state.
- * Exported separately to comply with Fast Refresh lint rules.
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export const useUI = () => {
+export function useUI() {
   const context = useContext(UIContext);
-  if (!context) {
-    throw new Error('useUI must be used within a UIProvider');
-  }
+  if (!context) throw new Error('useUI must be used within a UIProvider');
   return context;
-};
+}
