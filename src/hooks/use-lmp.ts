@@ -21,7 +21,7 @@ export function useSession() {
       userAgent: navigator.userAgent
     };
     try {
-      const res = await api<SessionCheckpoint>('/api/sessions/start', { 
+      const res = await api<SessionCheckpoint>('/api/sessions/start', {
         method: 'POST',
         body: JSON.stringify({ userId: 'main', clientMeta } as SessionStartPayload)
       });
@@ -61,9 +61,13 @@ export function useCheckpoint(session: SessionCheckpoint | null, onConflict: (re
     } catch (e: any) {
       if (e.message.includes("409")) {
         setHasConflict(true);
-        const errData = JSON.parse(e.message.replace("409 ", ""));
-        setResolution(errData.resolution);
-        onConflict(errData);
+        try {
+          const errData = JSON.parse(e.message.replace("409 ", ""));
+          setResolution(errData.resolution);
+          onConflict(errData);
+        } catch (parseError) {
+          setResolution("Concurrent update collision");
+        }
       }
       return null;
     } finally {
@@ -106,7 +110,7 @@ export function useSemanticEmailEnhancement() {
         method: 'POST',
         body: JSON.stringify({
           serviceId,
-          templateId: protocol === 't-gdpr' ? 't-gdpr' : 't-ccpa',
+          templateId: protocol === 'gdpr' ? 't-gdpr' : 't-ccpa',
           userContext
         })
       });

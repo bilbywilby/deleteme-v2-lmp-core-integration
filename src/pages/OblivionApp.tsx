@@ -16,7 +16,6 @@ import { Progress } from '@/components/ui/progress';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { toast, Toaster } from 'sonner';
 import { Service, ServiceProgress, Identity, DeletionEvent, CustomService, TemplateType } from '@shared/types';
-import { formatDistanceToNow } from 'date-fns';
 import { useSession, useCheckpoint, useSemanticEmailEnhancement, useMemoryRetrieval } from '@/hooks/use-lmp';
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -59,8 +58,11 @@ export function OblivionApp() {
       const res = await api<any>('/api/oblivion/data');
       setData(res);
       setEditingIdentity(res.identity);
-    } catch (e) { toast.error("PROTOCOL UPLINK FAILED"); }
-    finally { setAppLoading(false); }
+    } catch (e) { 
+      toast.error("PROTOCOL UPLINK FAILED"); 
+    } finally { 
+      setAppLoading(false); 
+    }
   }, []);
   useEffect(() => { fetchProtocolData(); }, [fetchProtocolData]);
   useEffect(() => {
@@ -81,7 +83,9 @@ export function OblivionApp() {
       });
       setData(prev => prev ? ({ ...prev, progress: prev.progress.some(p => p.id === id) ? prev.progress.map(p => p.id === id ? updated : p) : [...prev.progress, updated] }) : null);
       toast.success(`${field.toUpperCase()} SYNCED`);
-    } catch (e) { toast.error("DATA COLLISION"); }
+    } catch (e) { 
+      toast.error("DATA COLLISION"); 
+    }
   };
   const generateEmailDraft = async (service: Service, protocol: TemplateType = 'gdpr') => {
     setSelectedService(service);
@@ -247,10 +251,34 @@ export function OblivionApp() {
           {editingIdentity && (
             <div className="space-y-8">
                <div className="space-y-4">
-                  <div className="space-y-1"><label className="text-[9px] text-primary font-bold uppercase">Operator ID</label><Input value={editingIdentity.userName} className="bg-black/40 border-primary/10 font-mono text-xs rounded-none" onChange={(e) => setEditingIdentity({...editingIdentity, userName: e.target.value})} /></div>
-                  <div className="space-y-1"><label className="text-[9px] text-primary font-bold uppercase">Uplink Email</label><Input value={editingIdentity.email} className="bg-black/40 border-primary/10 font-mono text-xs rounded-none" onChange={(e) => setEditingIdentity({...editingIdentity, email: e.target.value})} /></div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-primary font-bold uppercase">Operator ID</label>
+                    <Input value={editingIdentity.userName ?? ""} className="bg-black/40 border-primary/10 font-mono text-xs rounded-none" onChange={(e) => setEditingIdentity({...editingIdentity, userName: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-primary font-bold uppercase">Uplink Email</label>
+                    <Input value={editingIdentity.email ?? ""} className="bg-black/40 border-primary/10 font-mono text-xs rounded-none" onChange={(e) => setEditingIdentity({...editingIdentity, email: e.target.value})} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-primary font-bold uppercase">Full Name</label>
+                    <Input value={editingIdentity.fullName ?? ""} className="bg-black/40 border-primary/10 font-mono text-xs rounded-none" onChange={(e) => setEditingIdentity({...editingIdentity, fullName: e.target.value})} />
+                  </div>
                </div>
-               <Button className="w-full bg-primary text-background font-bold text-[10px] h-12 rounded-none uppercase" onClick={async () => { await api('/api/oblivion/identity', { method: 'POST', body: JSON.stringify(editingIdentity) }); toast.success("IDENTITY SYNCHRONIZED"); setSettingsOpen(false); fetchProtocolData(); }}>Initialize Sync</Button>
+               <Button 
+                className="w-full bg-primary text-background font-bold text-[10px] h-12 rounded-none uppercase" 
+                onClick={async () => { 
+                  try {
+                    await api('/api/oblivion/identity', { method: 'POST', body: JSON.stringify(editingIdentity) }); 
+                    toast.success("IDENTITY SYNCHRONIZED"); 
+                    setSettingsOpen(false); 
+                    fetchProtocolData(); 
+                  } catch (e) {
+                    toast.error("IDENTITY SYNC FAILED");
+                  }
+                }}
+              >
+                Initialize Sync
+              </Button>
             </div>
           )}
         </SheetContent>

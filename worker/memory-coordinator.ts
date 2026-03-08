@@ -1,15 +1,15 @@
 import { SemanticEngine } from "./semantic-engine";
-import { 
-  GlobalMemoryEntity, 
-  EventLogEntity, 
-  SessionCheckpointEntity 
+import {
+  GlobalMemoryEntity,
+  EventLogEntity,
+  SessionCheckpointEntity
 } from "./entities";
-import type { 
-  MemoryQuery, 
-  MemoryResult, 
-  MemoryLayer, 
-  Env 
+import type {
+  MemoryQuery,
+  MemoryResult,
+  MemoryLayer,
 } from "@shared/types";
+import type { Env } from "./core-utils";
 export class MemoryCoordinator {
   static async retrieve(env: Env, query: MemoryQuery): Promise<MemoryResult[]> {
     const startTime = Date.now();
@@ -36,9 +36,9 @@ export class MemoryCoordinator {
         layerContentGetter = (r) => r.content;
       }
       const matches = await SemanticEngine.similaritySearch(
-        query.query, 
-        layerItems, 
-        layerContentGetter, 
+        query.query,
+        layerItems,
+        layerContentGetter,
         query.policy.minScore
       );
       const layerLatency = Date.now() - layerStart;

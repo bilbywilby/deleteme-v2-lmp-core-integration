@@ -12,17 +12,18 @@ import {
 import { SemanticEngine } from "./semantic-engine";
 import { MemoryCoordinator } from "./memory-coordinator";
 import { ok, bad, Index } from './core-utils';
-import type { 
-  SessionStartPayload, 
-  MemoryQuery, 
-  TemplateType, 
-  SessionCheckpoint 
+import type {
+  SessionStartPayload,
+  MemoryQuery,
+  TemplateType,
+  SessionCheckpoint,
+  Identity
 } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/health', (c) => {
-    return ok(c, { 
-      status: 'OBLIVION_ACTIVE', 
-      uptime: process.uptime(),
+    return ok(c, {
+      status: 'OBLIVION_ACTIVE',
+      uptime: 0, // process.uptime() is not available in Workers
       lmp_version: '5.0.0-Hybrid'
     });
   });
@@ -39,6 +40,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       identity,
       logs: logs.events
     });
+  });
+  app.post('/api/oblivion/identity', async (c) => {
+    const identity = await c.req.json() as Identity;
+    const ent = new IdentityEntity(c.env, 'main');
+    await ent.save(identity);
+    return ok(c, identity);
   });
   app.post('/api/sessions/start', async (c) => {
     const payload = await c.req.json() as SessionStartPayload;
