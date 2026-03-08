@@ -51,6 +51,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
  * Hook to consume the UI state.
  * Exported separately to comply with Fast Refresh lint rules.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUI = () => {
   const context = useContext(UIContext);
   if (!context) {

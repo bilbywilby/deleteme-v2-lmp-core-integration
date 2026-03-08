@@ -29,7 +29,7 @@ function OblivionAppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(1000);
+  const [containerWidth, setContainerWidth] = useState(0);
   const { enhance, isEnhancing } = useSemanticEmailEnhancement();
   const { results: memoryResults, retrieve: retrieveMemory, loading: memLoading } = useMemoryRetrieval(session, selectedService);
   const { analyze: analyzeTrends, clusters: trends } = useSemanticClusters();
@@ -50,22 +50,26 @@ function OblivionAppContent() {
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
     const handleResize = () => {
-      if (containerRef.current) setContainerWidth(containerRef.current.offsetWidth);
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth);
+      }
     };
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, []);
   useEffect(() => {
     if (data && !appLoading) {
       const timer = setTimeout(() => saveCheckpoint('progress', data.progress), 3000);
       return () => clearTimeout(timer);
     }
-  }, [data, saveCheckpoint, appLoading]);
+  }, [data?.progress, saveCheckpoint, appLoading]);
   useEffect(() => {
     if (activeTab === 'logs') analyzeTrends();
   }, [activeTab, analyzeTrends]);
   const handleEnhance = useCallback(async (service: Service) => {
+    if (!service) return;
     setSelectedService(service);
     setEmailModal(true);
     setEmailDraft('');
@@ -122,17 +126,17 @@ function OblivionAppContent() {
         )}
       </AnimatePresence>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ProtocolHeader 
-          session={session} 
-          isSyncing={isSyncing} 
-          onOpenSettings={() => setSettingsOpen(true)} 
+        <ProtocolHeader
+          session={session}
+          isSyncing={isSyncing}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
         <Progress value={progressPercent} className="h-1 bg-slate-900 border border-primary/10 rounded-none mb-12" />
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <aside className="space-y-6">
             <ControlPanel />
             <LMPVisualizer activeLayer={memoryResults[0]?.layer} isProcessing={memLoading || isEnhancing} />
-            {trends.length > 0 && (
+            {trends && trends.length > 0 && (
               <div className="glass-cyber p-5 space-y-3">
                 <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold uppercase tracking-widest border-b border-emerald-500/10 pb-2">
                   <Layers size={12} /> Trend Analysis
@@ -146,21 +150,23 @@ function OblivionAppContent() {
               </div>
             )}
           </aside>
-          <main className="lg:col-span-3" ref={containerRef}>
+          <main className="lg:col-span-3 min-h-[600px]" ref={containerRef}>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="bg-slate-950/50 border border-primary/10 p-1 w-full flex justify-start h-auto gap-2 rounded-none mb-6">
                 <TabsTrigger value="services" className="data-[state=active]:bg-primary data-[state=active]:text-background uppercase font-bold text-[10px] px-8 py-3 rounded-none font-display">Target Matrix</TabsTrigger>
                 <TabsTrigger value="logs" className="data-[state=active]:bg-primary data-[state=active]:text-background uppercase font-bold text-[10px] px-8 py-3 rounded-none font-display">Event Stream</TabsTrigger>
               </TabsList>
               <TabsContent value="services" className="mt-0 outline-none">
-                <ServiceGrid
-                  services={filteredMatrix}
-                  progressData={data.progress}
-                  selectedServiceId={selectedService?.id}
-                  width={containerWidth}
-                  onSelect={setSelectedService}
-                  onEnhance={handleEnhance}
-                />
+                {containerWidth > 0 && (
+                  <ServiceGrid
+                    services={filteredMatrix}
+                    progressData={data.progress}
+                    selectedServiceId={selectedService?.id}
+                    width={containerWidth}
+                    onSelect={setSelectedService}
+                    onEnhance={handleEnhance}
+                  />
+                )}
               </TabsContent>
               <TabsContent value="logs" className="mt-0 outline-none">
                 <EventTimeline events={data.logs} />
